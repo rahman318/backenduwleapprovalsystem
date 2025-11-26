@@ -1,7 +1,7 @@
 // routes/requests.js
 import express from "express";
 import Request from "../models/Requests.js";
-import User from "../models/User.js";
+import User from "../models/user.js";
 import sendEmail from "../utils/emailService.js"; // ✅ pastikan utils/emailService.js ada
 
 const router = express.Router();
@@ -67,5 +67,6 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 export default router;
