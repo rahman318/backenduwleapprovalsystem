@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import User from "../models/user.js";
 import { forgotPassword, resetPassword } from "../controllers/authControllers.js";
 
 const router = express.Router();
@@ -97,5 +97,6 @@ router.post("/forgot-password", forgotPassword);
 
 // ✅ RESET PASSWORD
 router.post("/reset-password/:token", resetPassword);
+
 
 export default router;
