@@ -11,8 +11,8 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false,
   },
-  connectionTimeout: 50000,
-  greetingTimeout: 50000,
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
 });
 
 // 🔵 NOW SUPPORT ATTACHMENTS
@@ -34,3 +34,4 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
 
 
 export default sendEmail;
+
