@@ -1,6 +1,6 @@
 // backend/routes/users.js
 import express from "express";
-import User from "../models/Users.js";
+import User from "../models/users.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 // import { auth } from "../middleware/authMiddleware.js"; // Sementara kita remove auth
@@ -113,5 +113,6 @@ router.get("/approvers", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 export default router;
