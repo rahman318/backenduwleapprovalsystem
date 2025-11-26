@@ -46,7 +46,7 @@ app.use("/api", testEmailRoutes);
 // ==========================
 // ⚙️ DATABASE CONNECTION
 // ==========================
-const MONGO_URI = "mongodb+srv://rahman:rahman123@cluster0.xkonlz1.mongodb.net/";
+const MONGO_URI = "mongodb+srv://rahman:rahman123@cluster0.xkonlz1.mongodb.net/eapproval?retryWrites=true&w=majority"
 
 const connectDB = async () => {
   try {
@@ -66,5 +66,6 @@ connectDB();
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
 
 
