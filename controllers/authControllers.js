@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
-import User from "../models/User.js";
+import User from "../models/user.js";
 
 /* =====================================================
  🟢 REGISTER USER
@@ -205,4 +205,5 @@ export const resetPassword = async (req, res) => {
     console.error("❌ Ralat resetPassword:", err);
     res.status(500).json({ message: "Ralat pelayan", error: err.message });
   }
+
 };
