@@ -6,7 +6,7 @@ import {
   getApprovers,
   deleteUser, // 🟢 Tambah import deleteUser
 } from "../controllers/userController.js";
-import authMiddleware from "../middleware/authMiddleware.js"; // ✅ pastikan file ni wujud
+import authMiddleware from "../Middleware/authMiddleware.js"; // ✅ pastikan file ni wujud
 
 const router = express.Router();
 
@@ -44,5 +44,6 @@ router.delete("/:id", authMiddleware, async (req, res, next) => {
     res.status(500).json({ message: "Ralat semasa padam user" });
   }
 });
+
 
 export default router;
