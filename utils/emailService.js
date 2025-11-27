@@ -1,12 +1,12 @@
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
-  host: "underwaterworldlangkawi.com",
+  host: "s13684.securessl.net",
   port: 465,
   secure: true,
   auth: {
-    user: "admin@underwaterworldlangkawi.com",
-    pass: "Uwl<9330>",
+    user: "rahman_uwl@edenzil.com",
+    pass: "Uwl(9330)",
   },
   tls: {
     rejectUnauthorized: false,
@@ -34,4 +34,5 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
 
 
 export default sendEmail;
+
 
