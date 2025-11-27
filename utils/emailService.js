@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
-  host: "underwaterworldlangkawi.com",
+  host: "mail.underwaterworldlangkawi.com",
   port: 587,
   secure: false,
   auth: {
@@ -19,7 +19,7 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
     await transporter.sendMail({
-      from: `"e-Approval System" <admin@underwaterlangkawi.com>`,
+      from: `"e-Approval System" <admin@underwaterworldlangkawi.com>`,
       to,
       subject,
       html,
@@ -34,6 +34,7 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
 
 
 export default sendEmail;
+
 
 
 
