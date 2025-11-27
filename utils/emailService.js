@@ -1,14 +1,14 @@
-// emailService.js (Brevo API v3, siap attachment PDF)
+// utils/emailService.js
 import * as Brevo from '@getbrevo/brevo';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const client = new Brevo.TransactionalEmailsApi();
 
-// Fungsi untuk hantar email
+// Fungsi hantar email
 const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
-    // Map attachment PDF ke base64
+    // Convert attachments ke base64 (PDF, gambar, etc)
     const brevoAttachments = attachments?.map(file => ({
       content: file.content.toString('base64'),
       name: file.filename,
@@ -23,7 +23,7 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
       attachment: brevoAttachments?.length ? brevoAttachments : undefined,
     };
 
-    // Hantar email, pass API key setiap request
+    // Pass API key setiap request (v3 wajib)
     await client.sendTransacEmail(emailData, { 'api-key': process.env.BREVO_API_KEY });
 
     console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
@@ -32,7 +32,7 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
   }
 };
 
-// Test function minimal confirm email sampai
+// Test minimal email confirm sampai inbox
 export const testEmail = async (testRecipient) => {
   try {
     await sendEmail({
