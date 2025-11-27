@@ -19,7 +19,7 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
     await transporter.sendMail({
-      from: `"e-Approval System" <admin@underwaterworldlangkawi.com>`,
+      from: `"e-Approval System" <rahman_uwl@edenzil.com>`,
       to,
       subject,
       html,
@@ -34,5 +34,6 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
 
 
 export default sendEmail;
+
 
 
