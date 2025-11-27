@@ -1,34 +1,31 @@
-// emailService.js (Brevo API version)
+// emailService.js (Brevo API terbaru)
 import Brevo from '@getbrevo/brevo';
 
 // Initialize Brevo client
-const client = new Brevo.ApiClient();
-client.setApiKey(Brevo.ApiClient.API_KEY, process.env.BREVO_API_KEY);
-
-const emailApi = new Brevo.TransactionalEmailsApi(client);
+const client = new Brevo({ apiKey: process.env.BREVO_API_KEY });
 
 // Fungsi untuk hantar email
 const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
-    // Brevo attachment format: base64 + name + contentType
+    // Format attachment: base64 + name + type
     let brevoAttachments = [];
     if (attachments && attachments.length > 0) {
       brevoAttachments = attachments.map(file => ({
-        content: file.content.toString('base64'), // PDF buffer → base64
+        content: file.content.toString('base64'),
         name: file.filename,
         type: file.mimetype || 'application/octet-stream',
       }));
     }
 
-    const sendSmtpEmail = new Brevo.SendSmtpEmail({
-      to: [{ email: to }],
+    // Hantar email
+    await client.sendTransacEmail({
       sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
+      to: [{ email: to }],
       subject,
       htmlContent: html,
-      attachment: brevoAttachments,
+      attachment: brevoAttachments.length ? brevoAttachments : undefined,
     });
 
-    await emailApi.sendTransacEmail(sendSmtpEmail);
     console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
   } catch (error) {
     console.error('❌ Ralat hantar emel:', error.response?.body || error);
@@ -36,4 +33,3 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
 };
 
 export default sendEmail;
-
