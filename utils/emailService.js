@@ -1,5 +1,5 @@
 // emailService.js (Brevo API version)
-import Brevo from 'brevo';
+import Brevo from '@getbrevo/brevo';
 
 // Initialize Brevo client
 const client = new Brevo.ApiClient();
@@ -36,3 +36,4 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
 };
 
 export default sendEmail;
+
