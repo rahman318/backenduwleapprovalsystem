@@ -1,43 +1,38 @@
-import nodemailer from "nodemailer";
+// emailService.js (Brevo API version)
+import Brevo from 'brevo';
 
-const transporter = nodemailer.createTransport({
-  host: "mail.underwaterworldlangkawi.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: "admin@underwaterworldlangkawi.com",
-    pass: "Uwl<9330>",
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-});
+// Initialize Brevo client
+const client = new Brevo.ApiClient();
+client.setApiKey(Brevo.ApiClient.API_KEY, process.env.BREVO_API_KEY);
 
-// 🔵 NOW SUPPORT ATTACHMENTS
+const emailApi = new Brevo.TransactionalEmailsApi(client);
+
+// Fungsi untuk hantar email
 const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
-    await transporter.sendMail({
-      from: `"e-Approval System" <admin@underwaterworldlangkawi.com>`,
-      to,
+    // Brevo attachment format: base64 + name + contentType
+    let brevoAttachments = [];
+    if (attachments && attachments.length > 0) {
+      brevoAttachments = attachments.map(file => ({
+        content: file.content.toString('base64'), // PDF buffer → base64
+        name: file.filename,
+        type: file.mimetype || 'application/octet-stream',
+      }));
+    }
+
+    const sendSmtpEmail = new Brevo.SendSmtpEmail({
+      to: [{ email: to }],
+      sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
       subject,
-      html,
-      attachments, // <-- SUPPORT ATTACHMENT DI SINI
+      htmlContent: html,
+      attachment: brevoAttachments,
     });
 
+    await emailApi.sendTransacEmail(sendSmtpEmail);
     console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
   } catch (error) {
-    console.error("❌ Ralat hantar emel:", error);
+    console.error('❌ Ralat hantar emel:', error.response?.body || error);
   }
 };
 
-
 export default sendEmail;
-
-
-
-
-
-
-
