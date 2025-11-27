@@ -1,15 +1,12 @@
-// emailService.js (Brevo API terbaru)
-import Brevo from '@getbrevo/brevo';
+import * as Brevo from '@getbrevo/brevo';
 
-// Initialize Brevo client
-const client = new Brevo({ apiKey: process.env.BREVO_API_KEY });
+const client = new Brevo.TransactionalEmailsApi();
+client.setApiKey(process.env.BREVO_API_KEY);
 
-// Fungsi untuk hantar email
 const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
-    // Format attachment: base64 + name + type
     let brevoAttachments = [];
-    if (attachments && attachments.length > 0) {
+    if (attachments?.length) {
       brevoAttachments = attachments.map(file => ({
         content: file.content.toString('base64'),
         name: file.filename,
@@ -17,14 +14,15 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
       }));
     }
 
-    // Hantar email
-    await client.sendTransacEmail({
+    const emailData = {
       sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
       to: [{ email: to }],
       subject,
       htmlContent: html,
       attachment: brevoAttachments.length ? brevoAttachments : undefined,
-    });
+    };
+
+    await client.sendTransacEmail(emailData);
 
     console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
   } catch (error) {
