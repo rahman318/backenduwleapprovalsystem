@@ -262,55 +262,54 @@ export const updateRequestStatus = async (req, res) => {
       }
 
   // ✅ EMEL NOTIFIKASI jika Approved / Rejected
-    if (status === "Approved" || status === "Rejected") {
-      const staffEmail = request.userId?.email;
-      const staffName = request.userId?.username || request.staffName;
-      const approverName = request.approver?.username || request.approverName || "Approver";
+    try {
+  // semua code update status + hantar email staff
+  if (status === "Approved" || status === "Rejected") {
+    const staffEmail = request.userId?.email;
+    const staffName = request.userId?.username || request.staffName;
+    const approverName = request.approver?.username || request.approverName || "Approver";
 
-      if (staffEmail) {
-        const subject = `Permohonan Anda Telah ${status}`;
-        const html = `
-          <h2>Notifikasi e-Approval</h2>
-          <p>Hi <b>${staffName}</b>,</p>
-          <p>Permohonan anda telah <b>${status}</b> oleh ${approverName}.</p>
-          <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
-          <p><b>Butiran:</b> ${request.details || "-"}</p>
-          <hr/>
-          <p>Terima kasih,<br/>Sistem e-Approval</p>
-        `;
+    if (staffEmail) {
+      const subject = `Permohonan Anda Telah ${status}`;
+      const html = `
+        <h2>Notifikasi e-Approval</h2>
+        <p>Hi <b>${staffName}</b>,</p>
+        <p>Permohonan anda telah <b>${status}</b> oleh ${approverName}.</p>
+        <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
+        <p><b>Butiran:</b> ${request.details || "-"}</p>
+        <hr/>
+        <p>Terima kasih,<br/>Sistem e-Approval</p>
+      `;
 
-        // 📎 Attach PDF jika Approved
-        let filePathToSend = null;
-        if (status === "Approved") {
-          const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
-          const pdfPath = `generated_pdfs/${request._id}_${safeType}.pdf`;
-          if (fs.existsSync(pdfPath)) {
-            filePathToSend = pdfPath;
-          }
-        }
-
-        await sendEmail({
-          to: staffEmail,
-          subject,
-          html,
-          filePath: filePathToSend, // <-- attach PDF kalau ada
-        });
-
-        console.log("📨 Emel status dihantar kepada staff (siap attachment jika Approved)");
+      // 📎 Attach PDF jika Approved
+      let filePathToSend = null;
+      if (status === "Approved") {
+        const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
+        const pdfPath = `generated_pdfs/${request._id}_${safeType}.pdf`;
+        if (fs.existsSync(pdfPath)) filePathToSend = pdfPath;
       }
+
+      await sendEmail({
+        to: staffEmail,
+        subject,
+        html,
+        filePath: filePathToSend,
+      });
+
+      console.log("📨 Emel status dihantar kepada staff (siap attachment jika Approved)");
     }
+  }
 
-    res.status(200).json(request);
-      
-      { catch (err) 
-  {
-    console.error("❌ Error updateRequestStatus:", err.message);
-    res.status(500).json({ message: "Gagal update status request" }
+  res.status(200).json(request);
 
-   }
-  );
+} catch (err) {
+  console.error("❌ Error updateRequestStatus:", err.message);
+  res.status(500).json({ message: "Gagal update status request" });
+}
+
 
   
+
 
 
 
