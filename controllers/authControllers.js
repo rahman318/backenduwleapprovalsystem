@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import User from "../models/user.js";
+import Brevo from "@getbrevo/brevo";
 
 /* =====================================================
  🟢 REGISTER USER
@@ -194,6 +195,7 @@ export const resetPassword = async (req, res) => {
   }
 
 };
+
 
 
 
