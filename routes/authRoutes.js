@@ -97,6 +97,8 @@ router.post("/forgot-password", forgotPassword);
 
 // ✅ RESET PASSWORD
 router.post("/reset-password/:token", resetPassword);
+const resetUrl = `https://uwleapprovalsystem.onrender.com/reset-password/${resetToken}`;
 
 
 export default router;
+
