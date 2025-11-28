@@ -303,11 +303,9 @@ try {
   // Pastikan response dalam try
   res.status(200).json(request);
 
-} catch (err) {
+  }//
+    } catch (err) {
   console.error("❌ Error updateRequestStatus:", err.message);
   res.status(500).json({ message: "Gagal update status request" });
 }
-// ================= END EMAIL STAFF BLOCK =================
-
-
-
+// ================= END EMAIL STAFF BLOCK =================//
