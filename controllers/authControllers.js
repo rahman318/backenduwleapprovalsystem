@@ -113,8 +113,10 @@ export const loginUser = async (req, res) => {
 };
 
 /* =====================================================
- 🟢 FORGOT PASSWORD
+ 🟢 FORGOT PASSWORD (Brevo)
 ===================================================== */
+import Brevo from "@getbrevo/brevo"; // npm i @getbrevo/brevo
+
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -123,9 +125,12 @@ export const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user)
-      return res.status(404).json({ message: "Pengguna tidak dijumpai" });
+      return res.status(200).json({ // ❌ Jangan reveal user tak wujud
+        message:
+          "Jika emel wujud dalam sistem, pautan reset kata laluan telah dihantar.",
+      });
 
-    // Jana token reset
+    // 🔑 Generate reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenHashed = crypto
       .createHash("sha256")
@@ -135,37 +140,40 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minit
     await user.save({ validateBeforeSave: false });
 
-    // Link reset (ubah ikut domain frontend nanti)
-    const resetUrl = `https://uwleapprovalsystem.onrender.com`;
+    // 🔗 Link reset
+    const resetUrl = `https://uwleapprovalsystem.onrender.com/reset-password/${resetToken}`;
 
-    // Konfigurasi Nodemailer (guna mail server bosskurr)
-    const transporter = nodemailer.createTransport({
-      host: "underwaterworldlangkawi.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: "admin@underwaterworldlangkawi.com",
-        pass: process.env.EMAIL_PASS,
+    // ✅ Setup Brevo client
+    const client = new Brevo.TransactionalEmailsApi();
+    client.setApiKey(
+      Brevo.TransactionalEmailsApiApiKeys.apiKey,
+      process.env.BREVO_API_KEY
+    );
+
+    const sendSmtpEmail = {
+      to: [{ email: user.email, name: user.username || user.name }],
+      templateId: 1, // ganti dengan template Brevo boss
+      params: {
+        username: user.username || user.name,
+        resetLink: resetUrl,
       },
-    });
-
-    const message = `
-      <h3>Reset Kata Laluan</h3>
-      <p>Anda menerima emel ini kerana anda telah meminta reset kata laluan akaun anda.</p>
-      <p>Klik pautan di bawah untuk reset kata laluan anda (sah selama 10 minit):</p>
-      <a href="${resetUrl}">${resetUrl}</a>
-    `;
-
-    await transporter.sendMail({
-      from: '"e-Approval System" <admin@underwaterworldlangkawi.com>',
-      to: user.email,
       subject: "Reset Kata Laluan e-Approval",
-      html: message,
-    });
+    };
 
-    res.status(200).json({ message: "Emel reset kata laluan telah dihantar" });
+    try {
+      await client.sendTransacEmail(sendSmtpEmail);
+      console.log("📨 Brevo: reset password email sent to", user.email);
+    } catch (emailErr) {
+      console.error("❌ Brevo send email error:", emailErr.message);
+      // Jangan throw supaya frontend tetap dapat response 200
+    }
+
+    res.status(200).json({
+      message:
+        "Jika emel wujud dalam sistem, pautan reset kata laluan telah dihantar.",
+    });
   } catch (err) {
-    console.error("❌ Ralat forgotPassword:", err);
+    console.error("❌ Ralat forgotPassword:", err.message);
     res.status(500).json({ message: "Ralat pelayan", error: err.message });
   }
 };
@@ -207,4 +215,5 @@ export const resetPassword = async (req, res) => {
   }
 
 };
+
 
