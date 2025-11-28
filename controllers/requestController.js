@@ -261,7 +261,7 @@ export const updateRequestStatus = async (req, res) => {
         }
       }
 
-    // ================= START EMAIL STAFF BLOCK ================= //
+   // ================= START EMAIL STAFF BLOCK ================= //
 try {
   // Hantar email kepada staff (fix attachment) //
   if (staffEmail) {
@@ -303,11 +303,8 @@ try {
   // Pastikan response dalam try
   res.status(200).json(request);
 
-  }//
-    } catch (err) {
+} catch (err) { // ✅ terus catch selepas tutup try
   console.error("❌ Error updateRequestStatus:", err.message);
   res.status(500).json({ message: "Gagal update status request" });
-}//
+}
 // ================= END EMAIL STAFF BLOCK =================//
-
-
