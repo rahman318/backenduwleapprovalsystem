@@ -262,8 +262,9 @@ export const updateRequestStatus = async (req, res) => {
       }
 
   // ✅ EMEL NOTIFIKASI jika Approved / Rejected
+      
     try {
-  // semua code update status + hantar email staff
+      
   if (status === "Approved" || status === "Rejected") {
     const staffEmail = request.userId?.email;
     const staffName = request.userId?.username || request.staffName;
@@ -306,3 +307,4 @@ export const updateRequestStatus = async (req, res) => {
   console.error("❌ Error updateRequestStatus:", err.message);
   res.status(500).json({ message: "Gagal update status request" });
     }
+      
