@@ -301,13 +301,14 @@ export const updateRequestStatus = async (req, res) => {
     }
 
     res.status(200).json(request);
-      
+   } catch (err) {
     console.error("❌ Error updateRequestStatus:", err.message);
-    res.status(500).json({ message: "Gagal update status request" }
+    res.status(500).json({ message: "Gagal update status request" };
     
   );
 
   
+
 
 
 
