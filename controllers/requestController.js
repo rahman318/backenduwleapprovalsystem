@@ -261,7 +261,8 @@ export const updateRequestStatus = async (req, res) => {
         }
       }
 
-      // Hantar email kepada staff (fix attachment)
+      try {
+  // Hantar email kepada staff (fix attachment)
   if (staffEmail) {
     const subject = `Permohonan Anda Telah ${status}`;
     const html = `
