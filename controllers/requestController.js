@@ -261,9 +261,9 @@ export const updateRequestStatus = async (req, res) => {
         }
       }
 
-    // ================= START EMAIL STAFF BLOCK =================
+    // ================= START EMAIL STAFF BLOCK ================= //
 try {
-  // Hantar email kepada staff (fix attachment)
+  // Hantar email kepada staff (fix attachment) //
   if (staffEmail) {
     const subject = `Permohonan Anda Telah ${status}`;
     const html = `
@@ -278,7 +278,7 @@ try {
 
     let filePathToSend;
 
-    // Jika Approved → attach PDF
+    // Jika Approved → attach PDF //
     if (status === "Approved") {
       const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
       const pdfPath = `generated_pdfs/${request._id}_${safeType}.pdf`;
@@ -309,4 +309,5 @@ try {
   res.status(500).json({ message: "Gagal update status request" });
 }//
 // ================= END EMAIL STAFF BLOCK =================//
+
 
