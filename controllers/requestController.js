@@ -274,7 +274,7 @@ try {
       <p><b>Butiran:</b> ${request.details || "-"}</p>
       <hr/>
       <p>Terima kasih,<br/>Sistem e-Approval</p>
-    `;
+   }`;
 
     let filePathToSend;
 
@@ -308,3 +308,4 @@ try {
   res.status(500).json({ message: "Gagal update status request" });
 }
 // ================= END EMAIL STAFF BLOCK =================//
+
