@@ -28,6 +28,15 @@ app.use(
   })
 );
 
+app.use(
+  cors({
+    origin: "https://uwleapprovalsystem.onrender.com", // frontend boss
+    methods: ["GET", "POST", "PUT", "DELETE"],
+  })
+);
+
+app.use(express.json());
+
 app.use(express.json({ limit: "10mb" })); // untuk parse JSON besar
 app.use(express.urlencoded({ extended: true })); // untuk form data
 
@@ -66,6 +75,7 @@ connectDB();
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
 
 
 
