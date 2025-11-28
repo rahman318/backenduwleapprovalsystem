@@ -261,7 +261,8 @@ export const updateRequestStatus = async (req, res) => {
         }
       }
 
-      try {
+    // ================= START EMAIL STAFF BLOCK =================
+try {
   // Hantar email kepada staff (fix attachment)
   if (staffEmail) {
     const subject = `Permohonan Anda Telah ${status}`;
@@ -276,11 +277,14 @@ export const updateRequestStatus = async (req, res) => {
     `;
 
     let filePathToSend;
+
+    // Jika Approved → attach PDF
     if (status === "Approved") {
       const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
       const pdfPath = `generated_pdfs/${request._id}_${safeType}.pdf`;
+
       if (fs.existsSync(pdfPath)) {
-        filePathToSend = pdfPath;
+        filePathToSend = pdfPath; // Attach PDF
       }
     }
 
@@ -296,10 +300,11 @@ export const updateRequestStatus = async (req, res) => {
     console.warn("⚠️ StaffEmail kosong, email tidak dihantar");
   }
 
-  // ✅ Pastikan res.status di dalam try
+  // Pastikan response dalam try
   res.status(200).json(request);
 
 } catch (err) {
   console.error("❌ Error updateRequestStatus:", err.message);
   res.status(500).json({ message: "Gagal update status request" });
 }
+// ================= END EMAIL STAFF BLOCK =================
