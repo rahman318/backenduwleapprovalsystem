@@ -136,7 +136,7 @@ export const forgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     // Link reset (ubah ikut domain frontend nanti)
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    const resetUrl = `https://uwleapprovalsystem.onrender.com`;
 
     // Konfigurasi Nodemailer (guna mail server bosskurr)
     const transporter = nodemailer.createTransport({
@@ -207,3 +207,4 @@ export const resetPassword = async (req, res) => {
   }
 
 };
+
