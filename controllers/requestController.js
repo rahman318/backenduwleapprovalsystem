@@ -261,30 +261,40 @@ export const updateRequestStatus = async (req, res) => {
         }
       }
 
-      // Hantar email kepada staff
-      if (staffEmail) {
-        const subject = `Permohonan Anda Telah ${status}`;
-        const html = `
-          <h2>Notifikasi e-Approval</h2>
-          <p>Hi <b>${staffName}</b>,</p>
-          <p>Permohonan anda telah <b>${status}</b> oleh ${approverName}.</p>
-          <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
-          <p><b>Butiran:</b> ${request.details || "-"}</p>
-          <hr/>
-          <p>Terima kasih,<br/>Sistem e-Approval</p>
-        `;
+      // Hantar email kepada staff (fix attachment)
+if (staffEmail) {
+  const subject = `Permohonan Anda Telah ${status}`;
+  const html = `
+    <h2>Notifikasi e-Approval</h2>
+    <p>Hi <b>${staffName}</b>,</p>
+    <p>Permohonan anda telah <b>${status}</b> oleh ${approverName}.</p>
+    <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
+    <p><b>Butiran:</b> ${request.details || "-"}</p>
+    <hr/>
+    <p>Terima kasih,<br/>Sistem e-Approval</p>
+  `;
 
-        // 🟣 HANTAR EMAIL DENGAN ATTACHMENT (jika Approved)
-        await sendEmail({
-          to: staffEmail,
-          subject,
-          html,
-          attachments,
-        });
-
-        console.log("📨 Emel status dihantar kepada staff (siap attachment jika Approved)");
-      }
+  // 📝 Prepare attachment jika Approved
+  let filePathToSend;
+  if (status === "Approved") {
+    const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
+    const pdfPath = `generated_pdfs/${request._id}_${safeType}.pdf`;
+    if (fs.existsSync(pdfPath)) {
+      filePathToSend = pdfPath; // hantar attachment
     }
+  }
+
+  await sendEmail({
+    to: staffEmail,
+    subject,
+    html,
+    filePath: filePathToSend, // <-- gunapakai emailService kita
+  });
+
+  console.log("📨 Emel status dihantar kepada staff (siap attachment jika Approved)");
+} else {
+  console.warn("⚠️ StaffEmail kosong, email tidak dihantar");
+}
 
     res.status(200).json(request);
 
@@ -294,3 +304,4 @@ export const updateRequestStatus = async (req, res) => {
   }
 
 };
+
