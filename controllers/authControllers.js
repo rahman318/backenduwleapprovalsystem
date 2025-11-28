@@ -113,9 +113,9 @@ export const loginUser = async (req, res) => {
 };
 
 /* =====================================================
- 🟢 FORGOT PASSWORD (Brevo)
+ 🟢 FORGOT PASSWORD (Brevo tanpa template)
 ===================================================== */
-import Brevo from "@getbrevo/brevo"; // npm i @getbrevo/brevo
+import Brevo from "@getbrevo/brevo";
 
 export const forgotPassword = async (req, res) => {
   try {
@@ -125,7 +125,7 @@ export const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user)
-      return res.status(200).json({ // ❌ Jangan reveal user tak wujud
+      return res.status(200).json({
         message:
           "Jika emel wujud dalam sistem, pautan reset kata laluan telah dihantar.",
       });
@@ -150,22 +150,26 @@ export const forgotPassword = async (req, res) => {
       process.env.BREVO_API_KEY
     );
 
-    const sendSmtpEmail = {
-      to: [{ email: user.email, name: user.username || user.name }],
-      templateId: 1, // ganti dengan template Brevo boss
-      params: {
-        username: user.username || user.name,
-        resetLink: resetUrl,
-      },
-      subject: "Reset Kata Laluan e-Approval",
-    };
+    // ❌ Tanpa template: pakai HTML custom
+    const htmlMessage = `
+      <h3>Reset Kata Laluan e-Approval</h3>
+      <p>Hi ${user.username || user.name},</p>
+      <p>Anda menerima emel ini kerana anda telah meminta reset kata laluan akaun anda.</p>
+      <p>Klik pautan di bawah untuk reset kata laluan anda (sah selama 10 minit):</p>
+      <a href="${resetUrl}">${resetUrl}</a>
+      <p>Jika anda tidak meminta reset, sila abaikan emel ini.</p>
+    `;
 
     try {
-      await client.sendTransacEmail(sendSmtpEmail);
+      await client.sendTransacEmail({
+        to: [{ email: user.email, name: user.username || user.name }],
+        subject: "Reset Kata Laluan e-Approval",
+        htmlContent: htmlMessage,
+        sender: { name: "e-Approval System", email: "no-reply@uwleapprovalsystem.com" },
+      });
       console.log("📨 Brevo: reset password email sent to", user.email);
     } catch (emailErr) {
       console.error("❌ Brevo send email error:", emailErr.message);
-      // Jangan throw supaya frontend tetap dapat response 200
     }
 
     res.status(200).json({
@@ -215,5 +219,6 @@ export const resetPassword = async (req, res) => {
   }
 
 };
+
 
 
