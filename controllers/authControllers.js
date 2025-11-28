@@ -113,71 +113,46 @@ export const loginUser = async (req, res) => {
 };
 
 /* =====================================================
- 🟢 FORGOT PASSWORD (Brevo tanpa template)
+ 🟢 FORGOT PASSWORD (pakai Brevo API, tanpa template)
 ===================================================== */
-import Brevo from "@getbrevo/brevo";
-
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email)
-      return res.status(400).json({ message: "Sila masukkan emel anda" });
+    if (!email) return res.status(400).json({ message: "Sila masukkan emel anda" });
 
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(200).json({
-        message:
-          "Jika emel wujud dalam sistem, pautan reset kata laluan telah dihantar.",
-      });
+    if (!user) return res.status(404).json({ message: "Pengguna tidak dijumpai" });
 
-    // 🔑 Generate reset token
+    // Jana token reset
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenHashed = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
+    const resetTokenHashed = crypto.createHash("sha256").update(resetToken).digest("hex");
+
     user.resetPasswordToken = resetTokenHashed;
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minit
     await user.save({ validateBeforeSave: false });
 
-    // 🔗 Link reset
+    // Link reset (frontend route)
     const resetUrl = `https://uwleapprovalsystem.onrender.com/reset-password/${resetToken}`;
 
-    // ✅ Setup Brevo client
-    const client = new Brevo.TransactionalEmailsApi();
-    client.setApiKey(
-      Brevo.TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY
-    );
+    // Hantar email pakai Brevo API
+    const brevoClient = new Brevo.TransactionalEmailsApi();
+    brevoClient.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
-    // ❌ Tanpa template: pakai HTML custom
-    const htmlMessage = `
-      <h3>Reset Kata Laluan e-Approval</h3>
-      <p>Hi ${user.username || user.name},</p>
-      <p>Anda menerima emel ini kerana anda telah meminta reset kata laluan akaun anda.</p>
-      <p>Klik pautan di bawah untuk reset kata laluan anda (sah selama 10 minit):</p>
-      <a href="${resetUrl}">${resetUrl}</a>
-      <p>Jika anda tidak meminta reset, sila abaikan emel ini.</p>
-    `;
-
-    try {
-      await client.sendTransacEmail({
-        to: [{ email: user.email, name: user.username || user.name }],
-        subject: "Reset Kata Laluan e-Approval",
-        htmlContent: htmlMessage,
-        sender: { name: "e-Approval System", email: "no-reply@uwleapprovalsystem.com" },
-      });
-      console.log("📨 Brevo: reset password email sent to", user.email);
-    } catch (emailErr) {
-      console.error("❌ Brevo send email error:", emailErr.message);
-    }
-
-    res.status(200).json({
-      message:
-        "Jika emel wujud dalam sistem, pautan reset kata laluan telah dihantar.",
+    await brevoClient.sendTransacEmail({
+      sender: { name: "e-Approval System", email: "admin@uwleapprovalsystem.com" },
+      to: [{ email: user.email }],
+      subject: "Reset Kata Laluan e-Approval",
+      htmlContent: `
+        <h3>Reset Kata Laluan</h3>
+        <p>Anda menerima emel ini kerana anda telah meminta reset kata laluan akaun anda.</p>
+        <p>Klik pautan di bawah untuk reset kata laluan anda (sah selama 10 minit):</p>
+        <a href="${resetUrl}">Reset Kata Laluan</a>
+      `,
     });
+
+    res.status(200).json({ message: "Emel reset kata laluan telah dihantar" });
   } catch (err) {
-    console.error("❌ Ralat forgotPassword:", err.message);
+    console.error("❌ Ralat forgotPassword:", err);
     res.status(500).json({ message: "Ralat pelayan", error: err.message });
   }
 };
@@ -219,6 +194,7 @@ export const resetPassword = async (req, res) => {
   }
 
 };
+
 
 
 
