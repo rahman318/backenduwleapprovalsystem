@@ -55,6 +55,21 @@ app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
 
 // ==========================
+// 🌐 Serve React frontend build
+// ==========================
+app.use(express.static(path.join(__dirname, "dist"))); // <-- letak sini
+
+// Reset password fallback
+app.get("/reset-password/:token", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist/index.html"));
+});
+
+// Universal SPA fallback (semua route React lain)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist/index.html"));
+});
+
+// ==========================
 // ⚙️ DATABASE CONNECTION
 // ==========================
 const MONGO_URI = "mongodb+srv://rahman:rahman123@cluster0.xkonlz1.mongodb.net/eapproval?retryWrites=true&w=majority"
@@ -76,19 +91,8 @@ connectDB();
 // ==========================
 const PORT = process.env.PORT || 5000;
 
-// ==========================
-// 🌐 SERVE REACT FRONTEND (RESET PASSWORD fallback)
-// ==========================
-app.get("/reset-password/:token", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist/index.html")); // ubah path ikut folder build React awak
-});
-
-// Jika nanti deploy full frontend React, boleh tambah fallback universal
-// app.get("*", (req, res) => {
-//   res.sendFile(path.join(__dirname, "dist/index.html"));
-// });
-
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
 
 
 
