@@ -80,7 +80,7 @@ const PORT = process.env.PORT || 5000;
 // 🌐 SERVE REACT FRONTEND (RESET PASSWORD fallback)
 // ==========================
 app.get("/reset-password/:token", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html")); // ubah path ikut folder build React awak
+  res.sendFile(path.join(__dirname, "dist/index.html")); // ubah path ikut folder build React awak
 });
 
 // Jika nanti deploy full frontend React, boleh tambah fallback universal
@@ -89,6 +89,7 @@ app.get("/reset-password/:token", (req, res) => {
 // });
 
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
 
 
 
