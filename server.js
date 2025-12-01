@@ -83,9 +83,10 @@ app.get("/reset-password/:token", (req, res) => {
 
 // Jika nanti deploy full frontend React, boleh tambah fallback universal
 // app.get("*", (req, res) => {
-//   res.sendFile(path.join(__dirname, "index.html"));
+//   res.sendFile(path.join(__dirname, "dist/index.html"));
 // });
 
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
 
 
