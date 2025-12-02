@@ -57,11 +57,6 @@ app.use("/api", testEmailRoutes);
 // ==========================
 app.use(express.static(path.join(__dirname, "dist"))); // <-- letak sini
 
-// Reset password fallback
-app.get("/reset-password/:token", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist/index.html"));
-});
-
 // Universal SPA fallback (semua route React lain)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist/index.html"));
@@ -90,6 +85,7 @@ connectDB();
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
 
 
 
