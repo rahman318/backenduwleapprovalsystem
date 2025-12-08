@@ -14,58 +14,49 @@ dotenv.config();
 
 const app = express();
 
-// 🧠 Dapatkan __dirname dalam ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ==========================
-// 🧱 MIDDLEWARE
-// ==========================
+// ✅ CORS - versi selamat
 app.use(
   cors({
-    origin: process.env.CLIENT_URL, // ✅ React dev URL
+    origin: [
+      process.env.CLIENT_URL,
+      "https://uwleapprovalsystem.onrender.com",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
 
-app.use(
-  cors({
-    origin: "https://uwleapprovalsystem.onrender.com", // frontend boss
-    methods: ["GET", "POST", "PUT", "DELETE"],
-  })
-);
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
 
-app.use(express.json());
-
-app.use(express.json({ limit: "10mb" })); // untuk parse JSON besar
-app.use(express.urlencoded({ extended: true })); // untuk form data
-
-// ✅ Serve static folder (uploads, images, etc.)
+// Static folders
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/generated_pdfs", express.static(path.join(__dirname, "generated_pdfs")));
 
-// ==========================
-// 🚀 ROUTES
-// ==========================
+// API routes
 app.use("/api/users", usersRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
 
-// ==========================
-// 🌐 Serve React frontend build
-// ==========================
-app.use(express.static(path.join(__dirname, "dist"))); // <-- letak sini
+// React build
+app.use(express.static(path.join(__dirname, "dist")));
 
-// Universal SPA fallback (semua route React lain)
+// ✅ Reset Password SPA route (WAJIB)
+app.get("/reset-password/:token", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist/index.html"));
+});
+
+// ✅ Universal React fallback
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist/index.html"));
 });
 
-// ==========================
-// ⚙️ DATABASE CONNECTION
-// ==========================
-const MONGO_URI = "mongodb+srv://rahman:rahman123@cluster0.xkonlz1.mongodb.net/eapproval?retryWrites=true&w=majority"
+// Mongo
+const MONGO_URI = process.env.MONGO_URI;
 
 const connectDB = async () => {
   try {
@@ -79,16 +70,7 @@ const connectDB = async () => {
 
 connectDB();
 
-// ==========================
-// 🖥️ START SERVER
-// ==========================
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
-
-
-
-
-
-
-
+app.listen(PORT, () =>
+  console.log(`🚀 Server running at http://localhost:${PORT}`)
+);
