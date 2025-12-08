@@ -42,15 +42,15 @@ app.use("/api/requests", requestRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
 
-// React build
+// Serve React build
 app.use(express.static(path.join(__dirname, "dist")));
 
-// ✅ Reset Password SPA route (WAJIB)
+// Reset password SPA route
 app.get("/reset-password/:token", (req, res) => {
   res.sendFile(path.join(__dirname, "dist/index.html"));
 });
 
-// ✅ Universal React fallback
+// Universal SPA fallback
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist/index.html"));
 });
@@ -74,3 +74,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
   console.log(`🚀 Server running at http://localhost:${PORT}`)
 );
+
