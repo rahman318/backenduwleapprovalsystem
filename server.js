@@ -63,12 +63,16 @@ app.use("/api", testEmailRoutes);
 // 🌐 Serve React build
 // ==========================
 
-app.use(express.static(path.join(__dirname, "/build")));
+app.use(express.static(path.join(__dirname, "build")));
 
-// SPA fallback (React) - semua route selain API
 app.get("*", (req, res) => {
-  if (!req.path.startsWith("/api")) {
-    res.sendFile(path.join(__dirname, "/build/index.html"));
+  if (
+    !req.path.startsWith("/api") &&
+    !req.path.startsWith("/assets") &&
+    !req.path.startsWith("/uploads") &&
+    !req.path.startsWith("/generated_pdfs")
+  ) {
+    res.sendFile(path.join(__dirname, "build", "index.html"));
   }
 });
 
@@ -96,6 +100,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
   console.log(`🚀 Server running at http://localhost:${PORT}`)
 );
+
 
 
 
