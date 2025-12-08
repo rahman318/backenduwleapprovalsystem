@@ -63,7 +63,7 @@ app.use("/api", testEmailRoutes);
 // 🌐 Serve React build
 // ==========================
 
-app.use(express.static(path.join(__dirname, "build")));
+app.use(express.static(path.join(__dirname, "dist")));
 
 app.get("*", (req, res) => {
   if (
@@ -72,7 +72,7 @@ app.get("*", (req, res) => {
     !req.path.startsWith("/uploads") &&
     !req.path.startsWith("/generated_pdfs")
   ) {
-    res.sendFile(path.join(__dirname, "build", "index.html"));
+    res.sendFile(path.join(__dirname, "dist", "index.html"));
   }
 });
 
@@ -100,6 +100,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
   console.log(`🚀 Server running at http://localhost:${PORT}`)
 );
+
 
 
 
