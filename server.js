@@ -22,24 +22,24 @@ const __dirname = path.dirname(__filename);
 // 🛡️ CORS - versi selamat
 // ==========================
 const allowedOrigins = [
-  process.env.CLIENT_URL,
+  process.env.CLIENT_URL || "http://localhost:5173", 
   "https://uwleapprovalsystem.onrender.com"
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // allow Postman / server-to-server
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg = "CORS policy: Origin not allowed";
-        return callback(new Error(msg), false);
-      }
-      return callback(null, true);
-    },
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: function(origin, callback) {
+    // allow requests with no origin (e.g., Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS policy: Origin not allowed"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 
 // ==========================
 // 🧱 Middleware
@@ -96,6 +96,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
   console.log(`🚀 Server running at http://localhost:${PORT}`)
 );
+
 
 
 
