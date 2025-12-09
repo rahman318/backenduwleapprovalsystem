@@ -187,9 +187,38 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
+    /* ================================
+       ✅ Hantar email notifikasi berjaya
+    =================================== */
+    try {
+      const brevoClient = new Brevo.TransactionalEmailsApi();
+      brevoClient.setApiKey(
+        Brevo.TransactionalEmailsApiApiKeys.apiKey,
+        process.env.BREVO_API_KEY
+      );
+
+      await brevoClient.sendTransacEmail({
+        sender: {
+          name: "e-Approval System",
+          email: "admin@uwleapprovalsystem.com",
+        },
+        to: [{ email: user.email }],
+        subject: "Kata Laluan Berjaya Ditukar",
+        htmlContent: `
+          <h3>Berjaya!</h3>
+          <p>Hai ${user.name},</p>
+          <p>Kata laluan akaun anda telah berjaya ditukar.</p>
+          <p>Jika anda tidak melakukan perubahan ini, sila hubungi admin dengan segera.</p>
+        `,
+      });
+    } catch (emailErr) {
+      console.log("⚠️ Gagal hantar emel notifikasi:", emailErr.message);
+    }
+
     res.status(200).json({ message: "Kata laluan berjaya ditetapkan semula" });
   } catch (err) {
     console.error("❌ Ralat resetPassword:", err);
     res.status(500).json({ message: "Ralat pelayan", error: err.message });
   }
 };
+
