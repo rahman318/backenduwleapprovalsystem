@@ -129,7 +129,7 @@ export const forgotPassword = async (req, res) => {
     const resetTokenHashed = crypto.createHash("sha256").update(resetToken).digest("hex");
 
     user.resetPasswordToken = resetTokenHashed;
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minit
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // ⬅️ fixed nama field
     await user.save({ validateBeforeSave: false });
 
     // Link reset (frontend route)
@@ -173,7 +173,7 @@ export const resetPassword = async (req, res) => {
 
     const user = await User.findOne({
       resetPasswordToken: resetTokenHashed,
-      resetPasswordExpire: { $gt: Date.now() },
+      resetPasswordExpires: { $gt: Date.now() }, // ⬅️ fixed nama field
     });
 
     if (!user)
@@ -182,10 +182,9 @@ export const resetPassword = async (req, res) => {
         .json({ message: "Token tidak sah atau telah tamat tempoh" });
 
     // Tukar kata laluan baru
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    user.password = password; // pre-save hook auto-hash
     user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    user.resetPasswordExpires = undefined;
     await user.save();
 
     res.status(200).json({ message: "Kata laluan berjaya ditetapkan semula" });
@@ -193,10 +192,4 @@ export const resetPassword = async (req, res) => {
     console.error("❌ Ralat resetPassword:", err);
     res.status(500).json({ message: "Ralat pelayan", error: err.message });
   }
-
 };
-
-
-
-
-
