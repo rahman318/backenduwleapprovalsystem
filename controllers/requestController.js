@@ -174,9 +174,7 @@ export const approveRequest = async (req, res) => {
       .populate("userId", "username email")
       .populate("approver", "username email");
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
+    if (!request) return res.status(404).json({ message: "Request not found" });
 
     request.status = "Approved";
     request.signatureApprover = req.body.signatureApprover || null;
@@ -209,7 +207,7 @@ export const approveRequest = async (req, res) => {
         ? [
             {
               filename: `approved_${request._id}.pdf`,
-              path: pdfPath,
+              path: `${process.cwd()}/${pdfPath}`, // absolute path supaya Nodemailer jumpa file
             },
           ]
         : [];
@@ -229,17 +227,13 @@ export const approveRequest = async (req, res) => {
         attachments,
       });
 
-      console.log("📨 Approved email sent to staff");
+      console.log("📨 Approved email sent to staff (PDF attached)");
     }
 
-    res
-      .status(200)
-      .json({ message: "Request approved & email sent", request });
+    res.status(200).json({ message: "Request approved & email sent", request });
   } catch (err) {
     console.error("❌ approveRequest error:", err.message);
-    res
-      .status(500)
-      .json({ message: "Gagal approve request", error: err.message });
+    res.status(500).json({ message: "Gagal approve request", error: err.message });
   }
 };
 
@@ -294,7 +288,7 @@ export const updateRequestStatus = async (req, res) => {
         if (fs.existsSync(pdfPath)) {
           attachments.push({
             filename: `approved_${safeType}.pdf`,
-            path: pdfPath,
+            path: `${process.cwd()}/${pdfPath}`, // absolute path
           });
         }
       }
@@ -317,7 +311,7 @@ export const updateRequestStatus = async (req, res) => {
           attachments,
         });
 
-        console.log("📨 Email status sent to staff");
+        console.log("📨 Email status sent to staff (PDF attached if Approved)");
       }
     }
 
