@@ -50,7 +50,6 @@ export const createRequest = async (req, res) => {
       if (!fs.existsSync("generated_pdfs")) fs.mkdirSync("generated_pdfs");
 
       const pdfBytes = await generateRequestPDF(populatedRequest);
-
       const safeType = requestType.toLowerCase().replace(/\s+/g, "_");
       const pdfPath = `generated_pdfs/${newRequest._id}_${safeType}.pdf`;
 
@@ -207,23 +206,25 @@ export const approveRequest = async (req, res) => {
         ? [
             {
               filename: `approved_${request._id}.pdf`,
-              path: `${process.cwd()}/${pdfPath}`, // absolute path supaya Nodemailer jumpa file
+              path: `${process.cwd()}/${pdfPath}`,
             },
           ]
         : [];
 
+      const html = `
+        <h2>Notifikasi e-Approval</h2>
+        <p>Hi <b>${staffName}</b>,</p>
+        <p>Permohonan anda telah <b style="color:green;">DILULUSKAN</b> oleh ${approverName}.</p>
+        <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
+        <p><b>Butiran:</b> ${request.details || "-"}</p>
+        <hr/>
+        <p>Terima kasih,<br/>Sistem e-Approval</p>
+      `;
+
       await sendEmail({
         to: staffEmail,
         subject: "✅ Permohonan Diluluskan",
-        html: `
-          <h2>Notifikasi e-Approval</h2>
-          <p>Hi <b>${staffName}</b>,</p>
-          <p>Permohonan anda telah <b style="color:green;">DILULUSKAN</b> oleh ${approverName}.</p>
-          <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
-          <p><b>Butiran:</b> ${request.details || "-"}</p>
-          <hr/>
-          <p>Terima kasih,<br/>Sistem e-Approval</p>
-        `,
+        html,
         attachments,
       });
 
@@ -288,7 +289,7 @@ export const updateRequestStatus = async (req, res) => {
         if (fs.existsSync(pdfPath)) {
           attachments.push({
             filename: `approved_${safeType}.pdf`,
-            path: `${process.cwd()}/${pdfPath}`, // absolute path
+            path: `${process.cwd()}/${pdfPath}`,
           });
         }
       }
