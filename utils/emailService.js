@@ -27,6 +27,7 @@ async function sendEmail({ to, subject, html, pdfBuffer, pdfName }) {
       sender: { email: "noreply@yourcompany.com", name: "e-Approval System" },
       subject,
       htmlContent: html,
+      attachment: undefined,
     };
 
     // 🟢 attach PDF kalau ada
@@ -46,7 +47,12 @@ async function sendEmail({ to, subject, html, pdfBuffer, pdfName }) {
     return response;
 
   } catch (err) {
-    console.error("❌ Ralat hantar emel:", err.response?.data || err.message);
+    // 🛑 tangkap error Brevo & console
+    if (err.response && err.response.data) {
+      console.error("❌ Ralat hantar emel:", JSON.stringify(err.response.data, null, 2));
+    } else {
+      console.error("❌ Ralat hantar emel:", err.message);
+    }
     throw err;
   }
 }
