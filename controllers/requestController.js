@@ -189,6 +189,14 @@ export const approveRequest = async (req, res) => {
       `;
 
       await sendEmail({
+  to: staffEmail,
+  subject: "Permohonan Diluluskan",
+  html: "<p>PDF dilampirkan</p>",
+  pdfBuffer,
+  pdfName: `approved_${request._id}.pdf`
+});
+
+      await sendEmail({
         to: staffEmail,
         subject: "✅ Permohonan Diluluskan",
         html,
@@ -263,3 +271,4 @@ export const updateRequestStatus = async (req, res) => {
     res.status(500).json({ message: "Gagal update status request" });
   }
 };
+
