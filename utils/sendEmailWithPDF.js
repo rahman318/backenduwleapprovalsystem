@@ -29,11 +29,15 @@ export async function sendEmailWithPDF({ to, subject, html, pdfBuffer = null, pd
     // 🔹 Siapkan data untuk hantar email
     const emailData = { to, subject, html };
 
-    if (pdfBuffer) {
+    if (pdfBuffer && pdfName) {
+      const base64Content = Buffer.isBuffer(pdfBuffer) 
+        ? pdfBuffer.toString("base64") 
+        : Buffer.from(pdfBuffer).toString("base64");
+
       emailData.attachment = [
         {
           name: pdfName,
-          content: pdfBuffer.toString("Base64"),
+          content: base64Content, // ✅ base64 kecil, sesuai Brevo
           type: "application/pdf"
         }
       ];
@@ -43,9 +47,6 @@ export async function sendEmailWithPDF({ to, subject, html, pdfBuffer = null, pd
 
     console.log(`📨 Emel berjaya dihantar ke: ${to}${pdfBuffer ? " (PDF attached)" : ""}`);
   } catch (err) {
-    console.error(`❌ Gagal hantar emel ke: ${to}`, err.message);
+    console.error(`❌ Gagal hantar emel ke: ${to}`, err.response?.data || err.message);
   }
 }
-
-
-
