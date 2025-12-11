@@ -9,7 +9,7 @@ dotenv.config();
  * Hantar email + PDF terus (Base64) tanpa simpan file
  * @param {Object} request - object request e-Approval
  */
-export async function sendRequestEmail(request) {
+const sendRequestEmail = async (request) => {
   try {
     // ---------------- 1️⃣ Generate PDF buffer ----------------
     const pdfBytes = await generateRequestPDF(request);
@@ -45,22 +45,7 @@ export async function sendRequestEmail(request) {
     console.error("❌ Ralat hantar email:", error);
     throw error;
   }
-}
-
-/**
- * optional: wrapper simpler call
- */
-export const handleRequestEmail = async (request) => {
-  try {
-    await sendRequestEmail(request);
-  } catch (err) {
-    console.error("❌ Hantar email gagal:", err.message);
-  }
 };
 
-
-
-
-
-
-
+// 🟢 Export default supaya import boss di controller jadi smooth
+export default sendRequestEmail;
