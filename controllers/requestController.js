@@ -204,6 +204,17 @@ export const approveRequest = async (req, res) => {
   }
 };
 
+// contoh hantar email dengan PDF
+const pdfBuffer = await generateRequestPDF(request);
+
+await sendEmail({
+  to: request.approver.email,
+  subject: `Permohonan Baru: ${request.requestType}`,
+  html: "<p>Sila semak PDF dilampirkan.</p>",
+  pdfBuffer,
+  pdfName: `request_${request._id}.pdf`,
+});
+
 // 🔵 UPDATE STATUS + REGENERATE PDF + EMAIL (APPROVE/REJECT)
 export const updateRequestStatus = async (req, res) => {
   try {
@@ -258,4 +269,5 @@ export const updateRequestStatus = async (req, res) => {
     res.status(500).json({ message: "Gagal update status request" });
   }
 };
+
 
