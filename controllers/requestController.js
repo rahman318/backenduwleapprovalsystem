@@ -5,12 +5,14 @@ import { sendEmailWithPDF } from "../utils/sendEmailWithPDF.js";
 import fs from "fs";
 import path from "path";
 
-// Folder untuk simpan PDF (optional)
+// Folder untuk simpan PDF
 const PDF_DIR = path.join(process.cwd(), "generated_pdfs");
 if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 
 
+// ===============================
 // 🟢 CREATE REQUEST
+// ===============================
 export const createRequest = async (req, res) => {
   try {
     const { userId, staffName, requestType, approver, approverName, approverDepartment,
@@ -39,7 +41,7 @@ export const createRequest = async (req, res) => {
     const populatedRequest = await Request.findById(newRequest._id)
       .populate("approver", "username department email");
 
-    // Generate PDF → Buffer + Save ke disk (optional)
+    // Generate PDF (buffer + save to disk)
     let pdfBuffer = null;
     const pdfName = `request_${newRequest._id}.pdf`;
     const pdfPath = path.join(PDF_DIR, pdfName);
@@ -47,11 +49,12 @@ export const createRequest = async (req, res) => {
     try {
       pdfBuffer = await generateRequestPDF(populatedRequest);
       fs.writeFileSync(pdfPath, pdfBuffer);
+      console.log("📄 PDF created:", pdfPath);
     } catch (err) {
       console.warn("⚠️ Gagal generate PDF:", err.message);
     }
 
-    // Hantar email ke approver + PDF buffer
+    // Hantar email kepada Approver
     if (populatedRequest?.approver?.email) {
       const subject = `Permohonan Baru Dari ${staffName}`;
       const html = `
@@ -83,7 +86,10 @@ export const createRequest = async (req, res) => {
   }
 };
 
-// ✍️ APPROVE REQUEST + EMAIL STAFF
+
+// ===============================
+// ✍️ APPROVE REQUEST
+// ===============================
 export const approveRequest = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id)
@@ -97,7 +103,7 @@ export const approveRequest = async (req, res) => {
     request.updatedAt = Date.now();
     await request.save();
 
-    // Generate PDF (buffer + simpan disk)
+    // Generate PDF
     let pdfBuffer = null;
     const pdfName = `approved_${request._id}.pdf`;
     const pdfPath = path.join(PDF_DIR, pdfName);
@@ -105,11 +111,11 @@ export const approveRequest = async (req, res) => {
     try {
       pdfBuffer = await generateRequestPDF(request);
       fs.writeFileSync(pdfPath, pdfBuffer);
+      console.log("📄 Approved PDF saved:", pdfPath);
     } catch (err) {
       console.warn("⚠️ Gagal generate PDF:", err.message);
     }
 
-    // Hantar email ke staff
     const staffEmail = request.userId?.email;
     const staffName = request.userId?.username || request.staffName;
     const approverName = request.approver?.username || "Approver";
@@ -139,18 +145,20 @@ export const approveRequest = async (req, res) => {
 };
 
 
-// 🟣 DOWNLOAD PDF — (Restore balik!)
+// ===============================
+// 🟣 DOWNLOAD PDF (RESTORE)
+// ===============================
 export const getPDFforRequest = async (req, res) => {
   try {
     const requestId = req.params.id;
-    const pdfPath = path.join(PDF_DIR, `request_${requestId}.pdf`);
-    const pdfPathApproved = path.join(PDF_DIR, `approved_${requestId}.pdf`);
 
-    // Check dua jenis
+    const pdf1 = path.join(PDF_DIR, `request_${requestId}.pdf`);
+    const pdf2 = path.join(PDF_DIR, `approved_${requestId}.pdf`);
+
     let filePath = null;
 
-    if (fs.existsSync(pdfPathApproved)) filePath = pdfPathApproved;
-    else if (fs.existsSync(pdfPath)) filePath = pdfPath;
+    if (fs.existsSync(pdf2)) filePath = pdf2;
+    else if (fs.existsSync(pdf1)) filePath = pdf1;
     else return res.status(404).json({ message: "PDF tidak dijumpai" });
 
     res.setHeader("Content-Type", "application/pdf");
@@ -165,8 +173,9 @@ export const getPDFforRequest = async (req, res) => {
 };
 
 
-
+// ===============================
 // 🔵 GET REQUEST LIST
+// ===============================
 export const getRequests = async (req, res) => {
   try {
     const requests = await Request.find()
