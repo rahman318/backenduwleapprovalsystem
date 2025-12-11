@@ -1,5 +1,5 @@
 import Request from "../models/Requests.js";
-import { sendEmail } from "../utils/emailService.js";
+import sendEmail from "../utils/emailService.js";
 import { generateRequestPDF } from "../utils/generatePDF.js";
 import fs from "fs";
 
@@ -258,3 +258,4 @@ export const updateRequestStatus = async (req, res) => {
     res.status(500).json({ message: "Gagal update status request" });
   }
 };
+
