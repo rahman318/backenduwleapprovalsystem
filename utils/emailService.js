@@ -1,6 +1,6 @@
 // emailService.js
 import Brevo from "@getbrevo/brevo";
-import { generateRequestPDF } from "./utils/generatePDF.js"; // pastikan path betul
+import { generateRequestPDF } from ".utils/generatePDF.js"; // pastikan path betul
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -57,3 +57,4 @@ export const handleRequestEmail = async (request) => {
     console.error("❌ Hantar email gagal:", err.message);
   }
 };
+
