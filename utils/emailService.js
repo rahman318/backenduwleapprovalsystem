@@ -1,54 +1,54 @@
-// utils/emailService.js
-import axios from 'axios';
-import dotenv from 'dotenv';
+import axios from "axios";
+import dotenv from "dotenv";
 dotenv.config();
 
 /**
- * Hantar email, boleh attach PDF dari buffer terus
- * @param {string} to - penerima
- * @param {string} subject - subject email
- * @param {string} html - content email
- * @param {Buffer|null} pdfBuffer - optional PDF buffer
- * @param {string} pdfName - nama fail PDF
+ * sendEmail
+ * @param {string} to
+ * @param {string} subject
+ * @param {string} html
+ * @param {Buffer|null} pdfBuffer
+ * @param {string|null} pdfName
  */
-const sendEmail = async ({ to, subject, html, pdfBuffer = null, pdfName = 'attachment.pdf' }) => {
+const sendEmail = async ({ to, subject, html, pdfBuffer, pdfName }) => {
   try {
     const payload = {
-      sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
+      sender: { 
+        name: "e-Approval System", 
+        email: "admin@underwaterworldlangkawi.com" 
+      },
       to: [{ email: to }],
       subject,
       htmlContent: html,
+      attachment: []
     };
 
-    // Kalau ada PDF buffer, attach terus
-    if (pdfBuffer) {
-      payload.attachment = [
-        {
-          name: pdfName,
-          contentBase64: pdfBuffer.toString('base64'),
-          type: 'application/pdf',
-        }
-      ];
+    // kalau ada PDF buffer
+    if (pdfBuffer && pdfName) {
+      payload.attachment.push({
+        name: pdfName,
+        content: pdfBuffer.toString("base64")
+      });
     }
 
     const response = await axios.post(
-      'https://api.brevo.com/v3/smtp/email',
+      "https://api.brevo.com/v3/smtp/email",
       payload,
       {
         headers: {
-          'api-key': process.env.BREVO_API_KEY,
-          'Content-Type': 'application/json'
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json"
         }
       }
     );
 
-    console.log(`✅ Emel berjaya dihantar kepada: ${to}${pdfBuffer ? ' (PDF attached)' : ''}`);
+    console.log("✅ Email sent:", to);
     return response.data;
 
   } catch (err) {
-    console.error('❌ Ralat hantar emel:', err.response?.data || err.message);
+    console.error("❌ Ralat Brevo:", err.response?.data || err.message);
+    throw err;
   }
 };
 
 export default sendEmail;
-
