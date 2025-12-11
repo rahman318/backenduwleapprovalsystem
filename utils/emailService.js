@@ -66,3 +66,5 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
     throw err;
   }
 };
+
+export default sendEmail;
