@@ -33,7 +33,7 @@ export async function sendEmailWithPDF({ to, subject, html, pdfBuffer = null, pd
       emailData.attachment = [
         {
           name: pdfName,
-          content: pdfBuffer.toString("contentBase64"),
+          content: pdfBuffer.toString("Base64"),
           type: "application/pdf"
         }
       ];
@@ -46,5 +46,6 @@ export async function sendEmailWithPDF({ to, subject, html, pdfBuffer = null, pd
     console.error(`❌ Gagal hantar emel ke: ${to}`, err.message);
   }
 }
+
 
 
