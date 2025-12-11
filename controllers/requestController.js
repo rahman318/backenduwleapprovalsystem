@@ -1,5 +1,6 @@
+// controllers/requestController.js
 import Request from "../models/Requests.js";
-import sendEmail from "../utils/emailService.js";
+import sendEmail from "../utils/emailService.js"; // pakai versi REST API
 import { generateRequestPDF } from "../utils/generatePDF.js";
 import fs from "fs";
 
@@ -45,7 +46,7 @@ export const createRequest = async (req, res) => {
     const populatedRequest = await Request.findById(newRequest._id)
       .populate("approver", "username department email");
 
-    // 🟣 JANA PDF BUFFER
+    // 🔄 Generate PDF buffer
     let pdfBuffer = null;
     try {
       pdfBuffer = await generateRequestPDF(populatedRequest);
@@ -54,30 +55,30 @@ export const createRequest = async (req, res) => {
       console.error("❌ Error jana PDF:", pdfErr.message);
     }
 
-    // 🟢 HANTAR EMAIL KEPADA APPROVER
-    try {
-      if (populatedRequest?.approver?.email) {
-        const subject = `Permohonan Baru Dari ${staffName}`;
-        const html = `
-          <h2>Notifikasi Permohonan Baru</h2>
-          <p>Hi <b>${populatedRequest.approver?.username || approverName || "Approver"}</b>,</p>
-          <p>Anda mempunyai permohonan baru untuk disemak.</p>
-          <p><b>Nama Staff:</b> ${staffName}</p>
-          <p><b>Jenis Permohonan:</b> ${requestType}</p>
-          <p><b>Butiran:</b> ${details || "-"}</p>
-          ${
-            requestType === "Cuti"
-              ? `<p><b>Tarikh Mula:</b> ${leaveStart}</p>
-                 <p><b>Tarikh Tamat:</b> ${leaveEnd}</p>`
-              : ""
-          }
-          <hr/>
-          <p>Sila log masuk untuk semak:</p>
-          <p><a href="https://uwleapprovalsystem.onrender.com">Buka Dashboard</a></p>
-          <br/>
-          <p>Terima kasih,<br/>Sistem e-Approval</p>
-        `;
+    // 📨 Hantar email kepada approver
+    if (populatedRequest?.approver?.email) {
+      const subject = `Permohonan Baru Dari ${staffName}`;
+      const html = `
+        <h2>Notifikasi Permohonan Baru</h2>
+        <p>Hi <b>${populatedRequest.approver?.username || approverName || "Approver"}</b>,</p>
+        <p>Anda mempunyai permohonan baru untuk disemak.</p>
+        <p><b>Nama Staff:</b> ${staffName}</p>
+        <p><b>Jenis Permohonan:</b> ${requestType}</p>
+        <p><b>Butiran:</b> ${details || "-"}</p>
+        ${
+          requestType === "Cuti"
+            ? `<p><b>Tarikh Mula:</b> ${leaveStart}</p>
+               <p><b>Tarikh Tamat:</b> ${leaveEnd}</p>`
+            : ""
+        }
+        <hr/>
+        <p>Sila log masuk untuk semak:</p>
+        <p><a href="https://uwleapprovalsystem.onrender.com">Buka Dashboard</a></p>
+        <br/>
+        <p>Terima kasih,<br/>Sistem e-Approval</p>
+      `;
 
+      try {
         await sendEmail({
           to: populatedRequest.approver.email,
           subject,
@@ -85,11 +86,10 @@ export const createRequest = async (req, res) => {
           pdfBuffer,
           pdfName: `request_${newRequest._id}.pdf`
         });
-
         console.log("📨 Emel notifikasi dihantar kepada approver!");
+      } catch (emailErr) {
+        console.error("❌ Gagal menghantar emel approver:", emailErr.message);
       }
-    } catch (emailErr) {
-      console.error("❌ Gagal menghantar emel approver:", emailErr.message);
     }
 
     res.status(201).json(populatedRequest);
@@ -169,10 +169,8 @@ export const approveRequest = async (req, res) => {
     request.updatedAt = Date.now();
     await request.save();
 
-    // 🔄 Generate PDF buffer
     const pdfBuffer = await generateRequestPDF(request);
 
-    // 📨 Hantar email ke staff
     const staffEmail = request.userId?.email;
     const staffName = request.userId?.username || request.staffName;
     const approverName = request.approver?.username || request.approverName || "Approver";
@@ -188,15 +186,18 @@ export const approveRequest = async (req, res) => {
         <p>Terima kasih,<br/>Sistem e-Approval</p>
       `;
 
-      await sendEmail({
-        to: staffEmail,
-        subject: `✅ Permohonan Diluluskan`,
-        html,
-        pdfBuffer,
-        pdfName: `approved_${request._id}.pdf`
-      });
-
-      console.log("📨 Approved email sent to staff (PDF attached)");
+      try {
+        await sendEmail({
+          to: staffEmail,
+          subject: `✅ Permohonan Diluluskan`,
+          html,
+          pdfBuffer,
+          pdfName: `approved_${request._id}.pdf`
+        });
+        console.log("📨 Approved email sent to staff (PDF attached)");
+      } catch (emailErr) {
+        console.error("❌ Gagal hantar email approve:", emailErr.message);
+      }
     }
 
     res.status(200).json({ message: "Request approved & email sent", request });
@@ -226,7 +227,6 @@ export const updateRequestStatus = async (req, res) => {
 
     console.log("✅ Status dikemaskini:", request.status);
 
-    // 🔄 Generate PDF buffer
     const pdfBuffer = await generateRequestPDF(request);
 
     const normalizedStatus = status.toLowerCase();
@@ -234,7 +234,6 @@ export const updateRequestStatus = async (req, res) => {
     const staffName = request.userId?.username || request.staffName;
     const approverName = request.approver?.username || request.approverName || "Approver";
 
-    // ✅ Hantar email jika approved/rejected
     if (staffEmail && ["approved","rejected"].includes(normalizedStatus)) {
       const html = `
         <h2>Notifikasi e-Approval</h2>
@@ -246,15 +245,18 @@ export const updateRequestStatus = async (req, res) => {
         <p>Terima kasih,<br/>Sistem e-Approval</p>
       `;
 
-      await sendEmail({
-        to: staffEmail,
-        subject: `Permohonan Anda Telah ${status}`,
-        html,
-        pdfBuffer: normalizedStatus === "approved" ? pdfBuffer : null,
-        pdfName: `approved_${request._id}.pdf`
-      });
-
-      console.log("📨 Email status sent to staff (PDF attached if Approved)");
+      try {
+        await sendEmail({
+          to: staffEmail,
+          subject: `Permohonan Anda Telah ${status}`,
+          html,
+          pdfBuffer: normalizedStatus === "approved" ? pdfBuffer : null,
+          pdfName: `approved_${request._id}.pdf`
+        });
+        console.log("📨 Email status sent to staff (PDF attached if Approved)");
+      } catch (emailErr) {
+        console.error("❌ Gagal hantar email status:", emailErr.message);
+      }
     }
 
     res.status(200).json(request);
