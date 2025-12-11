@@ -1,51 +1,59 @@
-import axios from 'axios';
-import fs from 'fs';
-import dotenv from 'dotenv';
+// emailService.js
+import Brevo from "@getbrevo/brevo";
+import { generateRequestPDF } from "./utils/generatePDF.js"; // pastikan path betul
+import dotenv from "dotenv";
 dotenv.config();
 
 /**
- * sendEmail
- * @param {string} to - penerima
- * @param {string} subject - subject email
- * @param {string} html - content email
- * @param {string} [filePath] - optional attachment path (PDF)
+ * sendRequestEmail
+ * Hantar email + PDF terus (Base64) tanpa simpan file
+ * @param {Object} request - object request e-Approval
  */
-const sendEmail = async ({ to, subject, html, filePath }) => {
+export async function sendRequestEmail(request) {
   try {
-    const payload = {
-      sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html
+    // ---------------- 1️⃣ Generate PDF buffer ----------------
+    const pdfBytes = await generateRequestPDF(request);
+
+    // ---------------- 2️⃣ Convert PDF to Base64 ----------------
+    const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
+
+    // ---------------- 3️⃣ Setup Brevo Client ----------------
+    const client = new Brevo.TransactionalEmailsApi();
+    client.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+
+    // ---------------- 4️⃣ Prepare Email ----------------
+    const sendSmtpEmail = {
+      to: [{ email: request.userId.email, name: request.userId.name }],
+      sender: { email: "noreply@yourcompany.com", name: "e-Approval System" },
+      subject: `Permohonan Anda: ${request.requestType}`,
+      textContent: "Sila rujuk PDF dilampirkan.",
+      attachment: [
+        {
+          content: pdfBase64,
+          name: `request_${request._id}.pdf`,
+          type: "application/pdf",
+        },
+      ],
     };
 
-    // kalau ada attachment
-    if (filePath) {
-      const fileContent = fs.readFileSync(filePath, { encoding: 'base64' });
-      payload.attachment = [
-        {
-          name: 'ApprovalRequest.pdf',
-          content: fileContent
-        }
-      ];
-    }
+    // ---------------- 5️⃣ Send Email ----------------
+    const response = await client.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Email berjaya dihantar kepada: ${request.userId.email}`, response);
+    return response;
 
-    const response = await axios.post(
-      'https://api.brevo.com/v3/smtp/email',
-      payload,
-      {
-        headers: {
-          'api-key': process.env.BREVO_API_KEY,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+  } catch (error) {
+    console.error("❌ Ralat hantar email:", error);
+    throw error;
+  }
+}
 
-    console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
-    return response.data;
+/**
+ * optional: wrapper simpler call
+ */
+export const handleRequestEmail = async (request) => {
+  try {
+    await sendRequestEmail(request);
   } catch (err) {
-    console.error('❌ Ralat hantar emel:', err.response?.data || err.message);
+    console.error("❌ Hantar email gagal:", err.message);
   }
 };
-
-export default sendEmail;
