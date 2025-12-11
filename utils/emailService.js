@@ -27,7 +27,7 @@ const sendEmail = async ({ to, subject, html, pdfBuffer, pdfName }) => {
     if (pdfBuffer && pdfName) {
       payload.attachment.push({
         name: pdfName,
-        content: pdfBuffer.toString("base64")
+        content: pdfBuffer.toString("contentBase64")
       });
     }
 
@@ -52,3 +52,4 @@ const sendEmail = async ({ to, subject, html, pdfBuffer, pdfName }) => {
 };
 
 export default sendEmail;
+
