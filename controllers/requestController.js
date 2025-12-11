@@ -7,8 +7,16 @@ import fs from "fs";
 export const createRequest = async (req, res) => {
   try {
     const { 
-      userId, staffName, requestType, approver, approverName,
-      approverDepartment, leaveStart, leaveEnd, details, signatureStaff 
+      userId, 
+      staffName, 
+      requestType, 
+      approver, 
+      approverName,
+      approverDepartment,
+      leaveStart, 
+      leaveEnd, 
+      details,
+      signatureStaff 
     } = req.body;
 
     let fileUrl = null;
@@ -37,7 +45,7 @@ export const createRequest = async (req, res) => {
     const populatedRequest = await Request.findById(newRequest._id)
       .populate("approver", "username department email");
 
-    // 🟣 Generate PDF buffer
+    // 🟣 JANA PDF BUFFER
     let pdfBuffer = null;
     try {
       pdfBuffer = await generateRequestPDF(populatedRequest);
@@ -46,7 +54,7 @@ export const createRequest = async (req, res) => {
       console.error("❌ Error jana PDF:", pdfErr.message);
     }
 
-    // 🟢 Hantar email kepada approver
+    // 🟢 HANTAR EMAIL KEPADA APPROVER
     try {
       if (populatedRequest?.approver?.email) {
         const subject = `Permohonan Baru Dari ${staffName}`;
@@ -75,41 +83,17 @@ export const createRequest = async (req, res) => {
           subject,
           html,
           pdfBuffer,
-          pdfName: `request_${newRequest._id}.pdf`,
+          pdfName: `request_${newRequest._id}.pdf`
         });
+
         console.log("📨 Emel notifikasi dihantar kepada approver!");
       }
     } catch (emailErr) {
       console.error("❌ Gagal menghantar emel approver:", emailErr.message);
     }
 
-    // 🟢 Hantar email kepada staff (optional)
-    try {
-      if (populatedRequest?.userId?.email) {
-        const html = `
-          <h2>Permohonan Berjaya Dihantar</h2>
-          <p>Hi <b>${staffName}</b>,</p>
-          <p>Permohonan anda telah berjaya dihantar kepada approver.</p>
-          <p><b>Jenis Permohonan:</b> ${requestType}</p>
-          <p><b>Butiran:</b> ${details || "-"}</p>
-          <hr/>
-          <p>Terima kasih,<br/>Sistem e-Approval</p>
-        `;
-
-        await sendEmail({
-          to: populatedRequest.userId.email,
-          subject: "Permohonan Anda Telah Dihantar",
-          html,
-          pdfBuffer,
-          pdfName: `request_${newRequest._id}.pdf`,
-        });
-        console.log("📨 Emel notifikasi dihantar kepada staff!");
-      }
-    } catch (emailErr) {
-      console.error("❌ Gagal hantar emel ke staff:", emailErr.message);
-    }
-
     res.status(201).json(populatedRequest);
+
   } catch (err) {
     console.error("❌ Error createRequest:", err.message);
     res.status(500).json({ message: "Gagal simpan request", error: err.message });
@@ -188,7 +172,7 @@ export const approveRequest = async (req, res) => {
     // 🔄 Generate PDF buffer
     const pdfBuffer = await generateRequestPDF(request);
 
-    // 📨 Hantar email ke staff yang buat request
+    // 📨 Hantar email ke staff
     const staffEmail = request.userId?.email;
     const staffName = request.userId?.username || request.staffName;
     const approverName = request.approver?.username || request.approverName || "Approver";
@@ -209,7 +193,7 @@ export const approveRequest = async (req, res) => {
         subject: "✅ Permohonan Diluluskan",
         html,
         pdfBuffer,
-        pdfName: `approved_${request._id}.pdf`,
+        pdfName: `approved_${request._id}.pdf`
       });
 
       console.log("📨 Approved email sent to staff (PDF attached)");
@@ -250,12 +234,7 @@ export const updateRequestStatus = async (req, res) => {
     const staffName = request.userId?.username || request.staffName;
     const approverName = request.approver?.username || request.approverName || "Approver";
 
-    let attachments = [];
-    if (normalizedStatus === "approved") {
-      attachments.push({ filename: `approved_${request._id}.pdf`, content: pdfBuffer.toString("base64") });
-    }
-
-    // 📨 Hantar email ke staff ikut status
+    // ✅ Hantar email jika approved/rejected
     if (staffEmail && ["approved","rejected"].includes(normalizedStatus)) {
       const html = `
         <h2>Notifikasi e-Approval</h2>
@@ -267,7 +246,14 @@ export const updateRequestStatus = async (req, res) => {
         <p>Terima kasih,<br/>Sistem e-Approval</p>
       `;
 
-      await sendEmail({ to: staffEmail, subject: `Permohonan Anda Telah ${status}`, html, pdfBuffer, pdfName: `request_${request._id}.pdf` });
+      await sendEmail({
+        to: staffEmail,
+        subject: `Permohonan Anda Telah ${status}`,
+        html,
+        pdfBuffer: normalizedStatus === "approved" ? pdfBuffer : null,
+        pdfName: `approved_${request._id}.pdf`
+      });
+
       console.log("📨 Email status sent to staff (PDF attached if Approved)");
     }
 
