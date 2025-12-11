@@ -1,50 +1,51 @@
-import axios from "axios";
-import dotenv from "dotenv";
+import axios from 'axios';
+import fs from 'fs';
+import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * sendEmail via Brevo API (REST)
- * @param {string} to - penerima email
+ * sendEmail
+ * @param {string} to - penerima
  * @param {string} subject - subject email
- * @param {string} html - content HTML
- * @param {Buffer} [pdfBuffer] - optional PDF attachment
- * @param {string} [pdfName] - nama PDF
+ * @param {string} html - content email
+ * @param {string} [filePath] - optional attachment path (PDF)
  */
-async function sendEmail({ to, subject, html, pdfBuffer, pdfName }) {
+const sendEmail = async ({ to, subject, html, filePath }) => {
   try {
-    const data = {
-      sender: { name: "e-Approval System", email: "noreply@yourcompany.com" },
+    const payload = {
+      sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
       to: [{ email: to }],
       subject,
-      htmlContent: html,
-      attachment: pdfBuffer
-        ? [
-            {
-              name: pdfName || "attachment.pdf",
-              content: pdfBuffer.toString("base64"),
-              type: "application/pdf",
-            },
-          ]
-        : undefined,
+      htmlContent: html
     };
 
+    // kalau ada attachment
+    if (filePath) {
+      const fileContent = fs.readFileSync(filePath, { encoding: 'base64' });
+      payload.attachment = [
+        {
+          name: 'ApprovalRequest.pdf',
+          content: fileContent
+        }
+      ];
+    }
+
     const response = await axios.post(
-      "https://api.brevo.com/v3/smtp/email",
-      data,
+      'https://api.brevo.com/v3/smtp/email',
+      payload,
       {
         headers: {
-          "api-key": process.env.BREVO_API_KEY,
-          "Content-Type": "application/json",
-        },
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json'
+        }
       }
     );
 
     console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
     return response.data;
   } catch (err) {
-    console.error("❌ Ralat hantar emel:", err.response?.data || err.message);
-    throw err;
+    console.error('❌ Ralat hantar emel:', err.response?.data || err.message);
   }
-}
+};
 
 export default sendEmail;
