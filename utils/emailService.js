@@ -1,14 +1,8 @@
+// utils/emailService.js
 import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config();
 
-/**
- * sendEmail
- * @param {string} to - penerima
- * @param {string} subject - subject email
- * @param {string} html - content email
- * @param {Array} attachments - optional, [{ filename, path }] atau [{ filename, content (Base64) }]
- */
 const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
     const payload = {
@@ -19,22 +13,13 @@ const sendEmail = async ({ to, subject, html, attachments = [] }) => {
       attachment: [],
     };
 
-    // Proses attachments
     for (const att of attachments) {
       if (att.content) {
-        // kalau ada buffer Base64
-        payload.attachment.push({
-          name: att.filename,
-          content: att.content,
-        });
+        payload.attachment.push({ name: att.filename, content: att.content });
       } else if (att.path) {
-        // kalau ada path file, convert ke Base64
         const fs = await import('fs');
         const fileContent = fs.readFileSync(att.path, { encoding: 'base64' });
-        payload.attachment.push({
-          name: att.filename,
-          content: fileContent,
-        });
+        payload.attachment.push({ name: att.filename, content: fileContent });
       }
     }
 
@@ -57,4 +42,5 @@ const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   }
 };
 
-export { sendEmail };
+// ⬇️ default export
+export default sendEmail;
