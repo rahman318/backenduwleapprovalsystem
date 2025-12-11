@@ -1,5 +1,5 @@
 import Request from "../models/Requests.js";
-import sendEmail from "../utils/emailService.js";
+import { sendEmail } from "../utils/emailService.js";
 import { generateRequestPDF } from "../utils/generatePDF.js";
 import fs from "fs";
 
@@ -46,15 +46,10 @@ export const createRequest = async (req, res) => {
       .populate("approver", "username department email");
 
     // 🟣 JANA PDF
+    let pdfBuffer = null;
     try {
-      if (!fs.existsSync("generated_pdfs")) fs.mkdirSync("generated_pdfs");
-
-      const pdfBytes = await generateRequestPDF(populatedRequest);
-      const safeType = requestType.toLowerCase().replace(/\s+/g, "_");
-      const pdfPath = `generated_pdfs/${newRequest._id}_${safeType}.pdf`;
-
-      fs.writeFileSync(pdfPath, pdfBytes);
-      console.log("📄 PDF dijana:", pdfPath);
+      pdfBuffer = await generateRequestPDF(populatedRequest);
+      console.log("📄 PDF dijana buffer siap dihantar");
     } catch (pdfErr) {
       console.error("❌ Error jana PDF:", pdfErr.message);
     }
@@ -65,22 +60,17 @@ export const createRequest = async (req, res) => {
         const subject = `Permohonan Baru Dari ${staffName}`;
         const html = `
           <h2>Notifikasi Permohonan Baru</h2>
-          <p>Hi <b>${
-            populatedRequest.approver?.username || approverName || "Approver"
-          }</b>,</p>
+          <p>Hi <b>${populatedRequest.approver?.username || approverName || "Approver"}</b>,</p>
           <p>Anda mempunyai permohonan baru untuk disemak.</p>
-
           <p><b>Nama Staff:</b> ${staffName}</p>
           <p><b>Jenis Permohonan:</b> ${requestType}</p>
           <p><b>Butiran:</b> ${details || "-"}</p>
-
           ${
             requestType === "Cuti"
               ? `<p><b>Tarikh Mula:</b> ${leaveStart}</p>
                  <p><b>Tarikh Tamat:</b> ${leaveEnd}</p>`
               : ""
           }
-
           <hr/>
           <p>Sila log masuk untuk semak:</p>
           <p><a href="https://uwleapprovalsystem.onrender.com">Buka Dashboard</a></p>
@@ -92,11 +82,11 @@ export const createRequest = async (req, res) => {
           to: populatedRequest.approver.email,
           subject,
           html,
-          attachments: [],
+          attachments: pdfBuffer ? [
+            { filename: `request_${newRequest._id}.pdf`, content: pdfBuffer.toString('base64') }
+          ] : [],
         });
         console.log("📨 Emel notifikasi dihantar kepada approver!");
-      } else {
-        console.warn("⚠️ Approver tiada email. Notifikasi tidak dihantar.");
       }
     } catch (emailErr) {
       console.error("❌ Gagal menghantar emel approver:", emailErr.message);
@@ -130,7 +120,6 @@ export const getPDFforRequest = async (req, res) => {
   try {
     const { id } = req.params;
     const request = await Request.findById(id);
-
     if (!request) return res.status(404).json({ message: "Request not found" });
 
     const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
@@ -178,39 +167,16 @@ export const approveRequest = async (req, res) => {
     request.status = "Approved";
     request.signatureApprover = req.body.signatureApprover || null;
     request.updatedAt = Date.now();
-
     await request.save();
 
-    // 🔄 REGENERATE PDF
-    let pdfPath = null;
-    try {
-      if (!fs.existsSync("generated_pdfs")) fs.mkdirSync("generated_pdfs");
+    // 🔄 Generate PDF buffer
+    const pdfBuffer = await generateRequestPDF(request);
 
-      const pdfBytes = await generateRequestPDF(request);
-      const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
-      pdfPath = `generated_pdfs/${request._id}_${safeType}.pdf`;
-
-      fs.writeFileSync(pdfPath, pdfBytes);
-    } catch (err) {
-      console.error("❌ PDF generation failed:", err.message);
-    }
-
-    // 📨 SEND EMAIL TO STAFF
     const staffEmail = request.userId?.email;
     const staffName = request.userId?.username || request.staffName;
-    const approverName =
-      request.approver?.username || request.approverName || "Approver";
+    const approverName = request.approver?.username || request.approverName || "Approver";
 
     if (staffEmail) {
-      const attachments = pdfPath
-        ? [
-            {
-              filename: `approved_${request._id}.pdf`,
-              path: `${process.cwd()}/${pdfPath}`,
-            },
-          ]
-        : [];
-
       const html = `
         <h2>Notifikasi e-Approval</h2>
         <p>Hi <b>${staffName}</b>,</p>
@@ -225,7 +191,7 @@ export const approveRequest = async (req, res) => {
         to: staffEmail,
         subject: "✅ Permohonan Diluluskan",
         html,
-        attachments,
+        attachments: pdfBuffer ? [{ filename: `approved_${request._id}.pdf`, content: pdfBuffer.toString('base64') }] : [],
       });
 
       console.log("📨 Approved email sent to staff (PDF attached)");
@@ -242,7 +208,6 @@ export const approveRequest = async (req, res) => {
 export const updateRequestStatus = async (req, res) => {
   try {
     const { status } = req.body;
-
     if (!["Pending", "Approved", "Rejected"].includes(status)) {
       return res.status(400).json({ message: "Status tak sah" });
     }
@@ -259,65 +224,35 @@ export const updateRequestStatus = async (req, res) => {
 
     console.log("✅ Status dikemaskini:", request.status);
 
-    // 🔄 REGENERATE PDF
-    try {
-      if (!fs.existsSync("generated_pdfs")) fs.mkdirSync("generated_pdfs");
+    // 🔄 Generate PDF buffer
+    const pdfBuffer = await generateRequestPDF(request);
 
-      const pdfBytes = await generateRequestPDF(request);
-      const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
-      const pdfPath = `generated_pdfs/${request._id}_${safeType}.pdf`;
+    const normalizedStatus = status.toLowerCase();
+    const staffEmail = request.userId?.email;
+    const staffName = request.userId?.username || request.staffName;
+    const approverName = request.approver?.username || request.approverName || "Approver";
 
-      fs.writeFileSync(pdfPath, pdfBytes);
-      console.log("🔄 PDF dikemaskini:", pdfPath);
-    } catch (err) {
-      console.error("❌ Error regenerate PDF:", err.message);
+    let attachments = [];
+    if (normalizedStatus === "approved") {
+      attachments.push({ filename: `approved_${request._id}.pdf`, content: pdfBuffer.toString('base64') });
     }
 
-    // 📨 SEND EMAIL TO STAFF
-    const normalizedStatus = status.toLowerCase();
-    if (["approved", "rejected"].includes(normalizedStatus)) {
-      const staffEmail = request.userId?.email;
-      const staffName = request.userId?.username || request.staffName;
-      const approverName =
-        request.approver?.username || request.approverName || "Approver";
+    if (staffEmail && ["approved","rejected"].includes(normalizedStatus)) {
+      const html = `
+        <h2>Notifikasi e-Approval</h2>
+        <p>Hi <b>${staffName}</b>,</p>
+        <p>Permohonan anda telah <b>${status}</b> oleh ${approverName}.</p>
+        <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
+        <p><b>Butiran:</b> ${request.details || "-"}</p>
+        <hr/>
+        <p>Terima kasih,<br/>Sistem e-Approval</p>
+      `;
 
-      let attachments = [];
-      if (normalizedStatus === "approved") {
-        const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
-        const pdfPath = `generated_pdfs/${request._id}_${safeType}.pdf`;
-
-        if (fs.existsSync(pdfPath)) {
-          attachments.push({
-            filename: `approved_${safeType}.pdf`,
-            path: `${process.cwd()}/${pdfPath}`,
-          });
-        }
-      }
-
-      if (staffEmail) {
-        const html = `
-          <h2>Notifikasi e-Approval</h2>
-          <p>Hi <b>${staffName}</b>,</p>
-          <p>Permohonan anda telah <b>${status}</b> oleh ${approverName}.</p>
-          <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
-          <p><b>Butiran:</b> ${request.details || "-"}</p>
-          <hr/>
-          <p>Terima kasih,<br/>Sistem e-Approval</p>
-        `;
-
-        await sendEmail({
-          to: staffEmail,
-          subject: `Permohonan Anda Telah ${status}`,
-          html,
-          attachments,
-        });
-
-        console.log("📨 Email status sent to staff (PDF attached if Approved)");
-      }
+      await sendEmail({ to: staffEmail, subject: `Permohonan Anda Telah ${status}`, html, attachments });
+      console.log("📨 Email status sent to staff (PDF attached if Approved)");
     }
 
     res.status(200).json(request);
-
   } catch (err) {
     console.error("❌ Error updateRequestStatus:", err.message);
     res.status(500).json({ message: "Gagal update status request" });
