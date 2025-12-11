@@ -15,8 +15,8 @@ export async function sendEmailWithPDF({ to, subject, html, pdfBuffer = null, pd
       to,
       subject,
       html,
-      pdfBuffer: pdfBuffer || undefined,
-      pdfName: pdfBuffer ? pdfName : undefined,
+      pdfBuffer: pdfBuffer ?? undefined, // pastikan undefined kalau null
+      pdfName: pdfBuffer ? pdfName : undefined, 
     });
     console.log(`📨 Emel berjaya dihantar ke: ${to}${pdfBuffer ? " (PDF attached)" : ""}`);
   } catch (err) {
