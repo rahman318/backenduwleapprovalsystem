@@ -1,6 +1,6 @@
 // backend/routes/requestRoutes.js
 import express from "express";
-import { createRequest, updateRequestStatus, approveRequest, } from "../controllers/requestController.js";
+import { createRequest, updateRequestStatus, approveRequest, getRequestPDF } from "../controllers/requestController.js";
 import Request from "../models/Requests.js";
 import upload from "../Middleware/upload.js";
 import authMiddleware from "../Middleware/authMiddleware.js";
@@ -62,6 +62,7 @@ router.get("/:id/pdf", async (req, res) => {
 
 
 export default router;
+
 
 
 
