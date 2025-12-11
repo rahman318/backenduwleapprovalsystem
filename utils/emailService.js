@@ -1,53 +1,62 @@
-// emailService.js
-import Brevo from "@getbrevo/brevo";
-import { generateRequestPDF } from "./generatePDF.js"; // pastikan path betul
-import dotenv from "dotenv";
+import axios from 'axios';
+import fs from 'fs';
+import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * sendRequestEmail
- * Hantar email + PDF terus (Base64) tanpa simpan file
- * @param {Object} request - object request e-Approval
+ * sendEmail
+ * @param {string} to - penerima
+ * @param {string} subject - subject email
+ * @param {string} html - content email
+ * @param {string} [filePath] - optional attachment path (PDF)
+ * @param {Buffer} [pdfBuffer] - optional PDF buffer untuk attach terus tanpa save
  */
-const sendRequestEmail = async (request) => {
+const sendEmail = async ({ to, subject, html, filePath, pdfBuffer }) => {
   try {
-    // ---------------- 1️⃣ Generate PDF buffer ----------------
-    const pdfBytes = await generateRequestPDF(request);
-
-    // ---------------- 2️⃣ Convert PDF to Base64 ----------------
-    const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
-
-    // ---------------- 3️⃣ Setup Brevo Client ----------------
-    const client = new Brevo.TransactionalEmailsApi();
-    client.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
-
-    // ---------------- 4️⃣ Prepare Email ----------------
-    const sendSmtpEmail = {
-      to: [{ email: request.userId.email, name: request.userId.name }],
-      sender: { email: "noreply@yourcompany.com", name: "e-Approval System" },
-      subject: `Permohonan Anda: ${request.requestType}`,
-      textContent: "Sila rujuk PDF dilampirkan.",
-      attachment: [
-        {
-          content: pdfBase64,
-          name: `request_${request._id}.pdf`,
-          type: "application/pdf",
-        },
-      ],
+    const payload = {
+      sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html
     };
 
-    // ---------------- 5️⃣ Send Email ----------------
-    const response = await client.sendTransacEmail(sendSmtpEmail);
-    console.log(`✅ Email berjaya dihantar kepada: ${request.userId.email}`, response);
-    return response;
+    // kalau ada attachment pakai filePath
+    if (filePath) {
+      const fileContent = fs.readFileSync(filePath, { encoding: 'base64' });
+      payload.attachment = [
+        {
+          name: 'ApprovalRequest.pdf',
+          content: fileContent
+        }
+      ];
+    }
 
-  } catch (error) {
-    console.error("❌ Ralat hantar email:", error);
-    throw error;
+    // kalau ada pdfBuffer (langsung dari generatePDF)
+    else if (pdfBuffer) {
+      payload.attachment = [
+        {
+          name: 'ApprovalRequest.pdf',
+          content: Buffer.from(pdfBuffer).toString('base64')
+        }
+      ];
+    }
+
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      payload,
+      {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
+    return response.data;
+  } catch (err) {
+    console.error('❌ Ralat hantar emel:', err.response?.data || err.message);
   }
 };
 
-// 🟢 Export default supaya import boss di controller jadi smooth
-export default sendRequestEmail;
-
-
+export default sendEmail;
