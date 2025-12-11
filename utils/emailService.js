@@ -1,6 +1,6 @@
 // emailService.js
 import Brevo from "@getbrevo/brevo";
-import { generateRequestPDF } from "../utils/generatePDF.js"; // pastikan path betul
+import { generateRequestPDF } from "./generatePDF.js"; // pastikan path betul
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -49,4 +49,5 @@ const sendRequestEmail = async (request) => {
 
 // 🟢 Export default supaya import boss di controller jadi smooth
 export default sendRequestEmail;
+
 
