@@ -1,5 +1,4 @@
 import axios from 'axios';
-import fs from 'fs';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -8,37 +7,35 @@ dotenv.config();
  * @param {string} to - penerima
  * @param {string} subject - subject email
  * @param {string} html - content email
- * @param {string} [filePath] - optional attachment path (PDF)
- * @param {Buffer} [pdfBuffer] - optional PDF buffer untuk attach terus tanpa save
+ * @param {Array} attachments - optional, [{ filename, path }] atau [{ filename, content (Base64) }]
  */
-const sendEmail = async ({ to, subject, html, filePath, pdfBuffer }) => {
+const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
     const payload = {
       sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
       to: [{ email: to }],
       subject,
-      htmlContent: html
+      htmlContent: html,
+      attachment: [],
     };
 
-    // kalau ada attachment pakai filePath
-    if (filePath) {
-      const fileContent = fs.readFileSync(filePath, { encoding: 'base64' });
-      payload.attachment = [
-        {
-          name: 'ApprovalRequest.pdf',
-          content: fileContent
-        }
-      ];
-    }
-
-    // kalau ada pdfBuffer (langsung dari generatePDF)
-    else if (pdfBuffer) {
-      payload.attachment = [
-        {
-          name: 'ApprovalRequest.pdf',
-          content: Buffer.from(pdfBuffer).toString('base64')
-        }
-      ];
+    // Proses attachments
+    for (const att of attachments) {
+      if (att.content) {
+        // kalau ada buffer Base64
+        payload.attachment.push({
+          name: att.filename,
+          content: att.content,
+        });
+      } else if (att.path) {
+        // kalau ada path file, convert ke Base64
+        const fs = await import('fs');
+        const fileContent = fs.readFileSync(att.path, { encoding: 'base64' });
+        payload.attachment.push({
+          name: att.filename,
+          content: fileContent,
+        });
+      }
     }
 
     const response = await axios.post(
@@ -56,7 +53,8 @@ const sendEmail = async ({ to, subject, html, filePath, pdfBuffer }) => {
     return response.data;
   } catch (err) {
     console.error('❌ Ralat hantar emel:', err.response?.data || err.message);
+    throw err;
   }
 };
 
-export default sendEmail;
+export { sendEmail };
