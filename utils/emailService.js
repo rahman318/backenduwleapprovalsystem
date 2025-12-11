@@ -10,7 +10,7 @@ dotenv.config();
  * @param {Buffer|null} pdfBuffer
  * @param {string|null} pdfName
  */
-const sendEmail = async ({ to, subject, html, pdfBuffer, pdfName }) => {
+const sendEmail = async ({ to, subject, html, pdfBuffer = null, pdfName = null }) => {
   try {
     const payload = {
       sender: { 
@@ -19,16 +19,18 @@ const sendEmail = async ({ to, subject, html, pdfBuffer, pdfName }) => {
       },
       to: [{ email: to }],
       subject,
-      htmlContent: html,
-      attachment: []
+      htmlContent: html
     };
 
-    // kalau ada PDF buffer
+    // Kalau ada PDF buffer
     if (pdfBuffer && pdfName) {
-      payload.attachment.push({
-        name: pdfName,
-        content: pdfBuffer.toString("Base64")
-      });
+      payload.attachment = [
+        {
+          name: pdfName,
+          content: Buffer.isBuffer(pdfBuffer) ? pdfBuffer.toString("base64") : Buffer.from(pdfBuffer).toString("base64"),
+          type: "application/pdf"
+        }
+      ];
     }
 
     const response = await axios.post(
@@ -52,5 +54,3 @@ const sendEmail = async ({ to, subject, html, pdfBuffer, pdfName }) => {
 };
 
 export default sendEmail;
-
-
