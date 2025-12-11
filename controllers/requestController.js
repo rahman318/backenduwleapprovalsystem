@@ -12,7 +12,7 @@ export const createRequest = async (req, res) => {
       approverDepartment, leaveStart, leaveEnd, details, signatureStaff 
     } = req.body;
 
-    let fileUrl = req.file ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}` : null;
+    const fileUrl = req.file ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}` : null;
 
     const newRequest = new Request({
       userId,
@@ -66,6 +66,42 @@ export const createRequest = async (req, res) => {
   } catch (err) {
     console.error("❌ Error createRequest:", err.message);
     res.status(500).json({ message: "Gagal simpan request", error: err.message });
+  }
+};
+
+// 📄 GET PDF EXISTING
+export const getPDFforRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await Request.findById(id);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
+    const pdfPath = `generated_pdfs/${id}_${safeType}.pdf`;
+
+    if (!fs.existsSync(pdfPath)) return res.status(404).json({ message: "PDF not found" });
+
+    res.sendFile(`${process.cwd()}/${pdfPath}`);
+  } catch (err) {
+    console.error("❌ getPDFforRequest error:", err.message);
+    res.status(500).json({ message: "Failed to fetch PDF", error: err.message });
+  }
+};
+
+// 📄 GENERATE PDF ON THE FLY
+export const getRequestPDF = async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    const pdfBytes = await generateRequestPDF(request);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename=request-${request._id}.pdf`);
+    res.send(pdfBytes);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Gagal generate PDF", error: err.message });
   }
 };
 
@@ -165,5 +201,20 @@ export const updateRequestStatus = async (req, res) => {
   } catch (err) {
     console.error("❌ Error updateRequestStatus:", err.message);
     res.status(500).json({ message: "Gagal update status request" });
+  }
+};
+
+// 🟡 GET SEMUA REQUEST
+export const getRequests = async (req, res) => {
+  try {
+    const requests = await Request.find()
+      .populate("userId", "username email role")
+      .populate("approver", "username email role")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(requests);
+  } catch (err) {
+    console.error("❌ Error getRequests:", err.message);
+    res.status(500).json({ message: "Gagal ambil senarai request" });
   }
 };
