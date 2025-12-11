@@ -167,6 +167,7 @@ export const getRequestPDF = async (req, res) => {
 };
 
 // ✍️ APPROVE REQUEST + SEND EMAIL + PDF
+// ✍️ APPROVE REQUEST + SEND EMAIL + PDF
 export const approveRequest = async (req, res) => {
   try {
     // 1️⃣ Cari request & populate user + approver
