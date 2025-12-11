@@ -1,31 +1,32 @@
+// utils/emailService.js
 import axios from 'axios';
-import fs from 'fs';
 import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * sendEmail
+ * Hantar email, boleh attach PDF dari buffer terus
  * @param {string} to - penerima
  * @param {string} subject - subject email
  * @param {string} html - content email
- * @param {string} [filePath] - optional attachment path (PDF)
+ * @param {Buffer|null} pdfBuffer - optional PDF buffer
+ * @param {string} pdfName - nama fail PDF
  */
-const sendEmail = async ({ to, subject, html, filePath }) => {
+const sendEmail = async ({ to, subject, html, pdfBuffer = null, pdfName = 'attachment.pdf' }) => {
   try {
     const payload = {
       sender: { name: 'e-Approval System', email: 'admin@underwaterworldlangkawi.com' },
       to: [{ email: to }],
       subject,
-      htmlContent: html
+      htmlContent: html,
     };
 
-    // kalau ada attachment
-    if (filePath) {
-      const fileContent = fs.readFileSync(filePath, { encoding: 'base64' });
+    // Kalau ada PDF buffer, attach terus
+    if (pdfBuffer) {
       payload.attachment = [
         {
-          name: 'ApprovalRequest.pdf',
-          content: fileContent
+          name: pdfName,
+          content: pdfBuffer.toString('base64'),
+          type: 'application/pdf',
         }
       ];
     }
@@ -41,8 +42,9 @@ const sendEmail = async ({ to, subject, html, filePath }) => {
       }
     );
 
-    console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
+    console.log(`✅ Emel berjaya dihantar kepada: ${to}${pdfBuffer ? ' (PDF attached)' : ''}`);
     return response.data;
+
   } catch (err) {
     console.error('❌ Ralat hantar emel:', err.response?.data || err.message);
   }
