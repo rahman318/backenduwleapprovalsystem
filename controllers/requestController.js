@@ -1,24 +1,29 @@
 // controllers/requestController.js
 import Request from "../models/Requests.js";
+import sendEmail from "../utils/emailService.js"; // pakai versi REST API
 import { generateRequestPDF } from "../utils/generatePDF.js";
-import { sendEmailWithPDF } from "../utils/sendEmailWithPDF.js";
 import fs from "fs";
-import path from "path";
 
-// Folder untuk simpan PDF
-const PDF_DIR = path.join(process.cwd(), "generated_pdfs");
-if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
-
-
-// ===============================
 // 🟢 CREATE REQUEST
-// ===============================
 export const createRequest = async (req, res) => {
   try {
-    const { userId, staffName, requestType, approver, approverName, approverDepartment,
-      leaveStart, leaveEnd, details, signatureStaff } = req.body;
+    const { 
+      userId, 
+      staffName, 
+      requestType, 
+      approver, 
+      approverName,
+      approverDepartment,
+      leaveStart, 
+      leaveEnd, 
+      details,
+      signatureStaff 
+    } = req.body;
 
-    const fileUrl = req.file ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}` : null;
+    let fileUrl = null;
+    if (req.file) {
+      fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
 
     const newRequest = new Request({
       userId,
@@ -41,41 +46,50 @@ export const createRequest = async (req, res) => {
     const populatedRequest = await Request.findById(newRequest._id)
       .populate("approver", "username department email");
 
-    // Generate PDF (buffer + save to disk)
+    // 🔄 Generate PDF buffer
     let pdfBuffer = null;
-    const pdfName = `request_${newRequest._id}.pdf`;
-    const pdfPath = path.join(PDF_DIR, pdfName);
-
     try {
       pdfBuffer = await generateRequestPDF(populatedRequest);
-      fs.writeFileSync(pdfPath, pdfBuffer);
-      console.log("📄 PDF created:", pdfPath);
-    } catch (err) {
-      console.warn("⚠️ Gagal generate PDF:", err.message);
+      console.log("📄 PDF dijana buffer siap dihantar");
+    } catch (pdfErr) {
+      console.error("❌ Error jana PDF:", pdfErr.message);
     }
 
-    // Hantar email kepada Approver
+    // 📨 Hantar email kepada approver
     if (populatedRequest?.approver?.email) {
       const subject = `Permohonan Baru Dari ${staffName}`;
       const html = `
         <h2>Notifikasi Permohonan Baru</h2>
-        <p>Hi <b>${populatedRequest.approver?.username || "Approver"}</b>,</p>
+        <p>Hi <b>${populatedRequest.approver?.username || approverName || "Approver"}</b>,</p>
         <p>Anda mempunyai permohonan baru untuk disemak.</p>
         <p><b>Nama Staff:</b> ${staffName}</p>
         <p><b>Jenis Permohonan:</b> ${requestType}</p>
         <p><b>Butiran:</b> ${details || "-"}</p>
-        ${requestType === "Cuti" ? `<p><b>Tarikh Mula:</b> ${leaveStart}</p><p><b>Tarikh Tamat:</b> ${leaveEnd}</p>` : ""}
+        ${
+          requestType === "Cuti"
+            ? `<p><b>Tarikh Mula:</b> ${leaveStart}</p>
+               <p><b>Tarikh Tamat:</b> ${leaveEnd}</p>`
+            : ""
+        }
         <hr/>
-        <p>Sila log masuk: <a href="https://uwleapprovalsystem.onrender.com">Dashboard</a></p>
+        <p>Sila log masuk untuk semak:</p>
+        <p><a href="https://uwleapprovalsystem.onrender.com">Buka Dashboard</a></p>
+        <br/>
+        <p>Terima kasih,<br/>Sistem e-Approval</p>
       `;
 
-      await sendEmailWithPDF({
-        to: populatedRequest.approver.email,
-        subject,
-        html,
-        pdfBuffer,
-        pdfName
-      });
+      try {
+        await sendEmail({
+          to: populatedRequest.approver.email,
+          subject,
+          html,
+          pdfBuffer,
+          pdfName: `request_${newRequest._id}.pdf`
+        });
+        console.log("📨 Emel notifikasi dihantar kepada approver!");
+      } catch (emailErr) {
+        console.error("❌ Gagal menghantar emel approver:", emailErr.message);
+      }
     }
 
     res.status(201).json(populatedRequest);
@@ -86,10 +100,62 @@ export const createRequest = async (req, res) => {
   }
 };
 
+// 🟡 GET SEMUA REQUEST
+export const getRequests = async (req, res) => {
+  try {
+    const requests = await Request.find()
+      .populate("userId", "username email role")
+      .populate("approver", "username email role")
+      .sort({ createdAt: -1 });
 
-// ===============================
-// ✍️ APPROVE REQUEST
-// ===============================
+    res.status(200).json(requests);
+  } catch (err) {
+    console.error("❌ Error getRequests:", err.message);
+    res.status(500).json({ message: "Gagal ambil senarai request" });
+  }
+};
+
+// 📄 GET PDF EXISTING
+export const getPDFforRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await Request.findById(id);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
+    const pdfPath = `generated_pdfs/${id}_${safeType}.pdf`;
+
+    if (!fs.existsSync(pdfPath)) return res.status(404).json({ message: "PDF not found" });
+
+    res.sendFile(`${process.cwd()}/${pdfPath}`);
+  } catch (err) {
+    console.error("❌ getPDFforRequest error:", err.message);
+    res.status(500).json({ message: "Failed to fetch PDF", error: err.message });
+  }
+};
+
+// 📄 GENERATE PDF ON THE FLY
+export const getRequestPDF = async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    const pdfBytes = await generateRequestPDF(request);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename=request-${request._id}.pdf`
+    );
+
+    res.send(pdfBytes);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Gagal generate PDF", error: err.message });
+  }
+};
+
+// ✍️ APPROVE REQUEST + SEND EMAIL + PDF
 export const approveRequest = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id)
@@ -103,90 +169,99 @@ export const approveRequest = async (req, res) => {
     request.updatedAt = Date.now();
     await request.save();
 
-    // Generate PDF
-    let pdfBuffer = null;
-    const pdfName = `approved_${request._id}.pdf`;
-    const pdfPath = path.join(PDF_DIR, pdfName);
-
-    try {
-      pdfBuffer = await generateRequestPDF(request);
-      fs.writeFileSync(pdfPath, pdfBuffer);
-      console.log("📄 Approved PDF saved:", pdfPath);
-    } catch (err) {
-      console.warn("⚠️ Gagal generate PDF:", err.message);
-    }
+    const pdfBuffer = await generateRequestPDF(request);
 
     const staffEmail = request.userId?.email;
     const staffName = request.userId?.username || request.staffName;
-    const approverName = request.approver?.username || "Approver";
+    const approverName = request.approver?.username || request.approverName || "Approver";
 
     if (staffEmail) {
       const html = `
         <h2>Notifikasi e-Approval</h2>
         <p>Hi <b>${staffName}</b>,</p>
         <p>Permohonan anda telah <b style="color:green;">DILULUSKAN</b> oleh ${approverName}.</p>
+        <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
+        <p><b>Butiran:</b> ${request.details || "-"}</p>
+        <hr/>
+        <p>Terima kasih,<br/>Sistem e-Approval</p>
       `;
 
-      await sendEmailWithPDF({
-        to: staffEmail,
-        subject: `Permohonan Diluluskan`,
-        html,
-        pdfBuffer,
-        pdfName
-      });
+      try {
+        await sendEmail({
+          to: staffEmail,
+          subject: `✅ Permohonan Diluluskan`,
+          html,
+          pdfBuffer,
+          pdfName: `approved_${request._id}.pdf`
+        });
+        console.log("📨 Approved email sent to staff (PDF attached)");
+      } catch (emailErr) {
+        console.error("❌ Gagal hantar email approve:", emailErr.message);
+      }
     }
 
-    res.status(200).json({ message: "Request approved", request });
-
+    res.status(200).json({ message: "Request approved & email sent", request });
   } catch (err) {
     console.error("❌ approveRequest error:", err.message);
-    res.status(500).json({ message: "Gagal approve request" });
+    res.status(500).json({ message: "Gagal approve request", error: err.message });
   }
 };
 
-
-// ===============================
-// 🟣 DOWNLOAD PDF (RESTORE)
-// ===============================
-export const getPDFforRequest = async (req, res) => {
+// 🔵 UPDATE STATUS + REGENERATE PDF + EMAIL (APPROVE/REJECT)
+export const updateRequestStatus = async (req, res) => {
   try {
-    const requestId = req.params.id;
+    const { status } = req.body;
+    if (!["Pending", "Approved", "Rejected"].includes(status)) {
+      return res.status(400).json({ message: "Status tak sah" });
+    }
 
-    const pdf1 = path.join(PDF_DIR, `request_${requestId}.pdf`);
-    const pdf2 = path.join(PDF_DIR, `approved_${requestId}.pdf`);
+    const request = await Request.findByIdAndUpdate(
+      req.params.id,
+      { status, updatedAt: Date.now() },
+      { new: true }
+    )
+      .populate("userId", "username email")
+      .populate("approver", "username email department");
 
-    let filePath = null;
+    if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
-    if (fs.existsSync(pdf2)) filePath = pdf2;
-    else if (fs.existsSync(pdf1)) filePath = pdf1;
-    else return res.status(404).json({ message: "PDF tidak dijumpai" });
+    console.log("✅ Status dikemaskini:", request.status);
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=${path.basename(filePath)}`);
+    const pdfBuffer = await generateRequestPDF(request);
 
-    fs.createReadStream(filePath).pipe(res);
+    const normalizedStatus = status.toLowerCase();
+    const staffEmail = request.userId?.email;
+    const staffName = request.userId?.username || request.staffName;
+    const approverName = request.approver?.username || request.approverName || "Approver";
 
+    if (staffEmail && ["approved","rejected"].includes(normalizedStatus)) {
+      const html = `
+        <h2>Notifikasi e-Approval</h2>
+        <p>Hi <b>${staffName}</b>,</p>
+        <p>Permohonan anda telah <b>${status}</b> oleh ${approverName}.</p>
+        <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
+        <p><b>Butiran:</b> ${request.details || "-"}</p>
+        <hr/>
+        <p>Terima kasih,<br/>Sistem e-Approval</p>
+      `;
+
+      try {
+        await sendEmail({
+          to: staffEmail,
+          subject: `Permohonan Anda Telah ${status}`,
+          html,
+          pdfBuffer: normalizedStatus === "approved" ? pdfBuffer : null,
+          pdfName: `approved_${request._id}.pdf`
+        });
+        console.log("📨 Email status sent to staff (PDF attached if Approved)");
+      } catch (emailErr) {
+        console.error("❌ Gagal hantar email status:", emailErr.message);
+      }
+    }
+
+    res.status(200).json(request);
   } catch (err) {
-    console.error("❌ Error getPDFforRequest:", err.message);
-    res.status(500).json({ message: "Gagal ambil PDF" });
-  }
-};
-
-
-// ===============================
-// 🔵 GET REQUEST LIST
-// ===============================
-export const getRequests = async (req, res) => {
-  try {
-    const requests = await Request.find()
-      .populate("userId", "username email role")
-      .populate("approver", "username email role")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(requests);
-
-  } catch (err) {
-    console.error("❌ Error getRequests:", err.message);
-    res.status(500).json({ message: "Gagal ambil senarai request" });
+    console.error("❌ Error updateRequestStatus:", err.message);
+    res.status(500).json({ message: "Gagal update status request" });
   }
 };
