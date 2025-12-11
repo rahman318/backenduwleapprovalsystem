@@ -1,41 +1,46 @@
-// utils/emailService.js
-import Brevo from "@getbrevo/brevo";
+import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
 
 /**
- * sendEmail via Brevo SDK (v3)
+ * sendEmail via Brevo API (REST)
+ * @param {string} to - penerima email
+ * @param {string} subject - subject email
+ * @param {string} html - content HTML
+ * @param {Buffer} [pdfBuffer] - optional PDF attachment
+ * @param {string} [pdfName] - nama PDF
  */
 async function sendEmail({ to, subject, html, pdfBuffer, pdfName }) {
   try {
-    const client = new Brevo.TransactionalEmailsApi();
-    client.setApiKey(
-      Brevo.TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY
-    );
-
-    const sendSmtpEmail = {
+    const data = {
+      sender: { name: "e-Approval System", email: "noreply@yourcompany.com" },
       to: [{ email: to }],
-      sender: { email: "noreply@yourcompany.com", name: "e-Approval System" },
       subject,
       htmlContent: html,
+      attachment: pdfBuffer
+        ? [
+            {
+              name: pdfName || "attachment.pdf",
+              content: pdfBuffer.toString("base64"),
+              type: "application/pdf",
+            },
+          ]
+        : undefined,
     };
 
-    // ✅ attach PDF kalau ada
-    if (pdfBuffer) {
-      sendSmtpEmail.attachment = [
-        {
-          name: pdfName || "attachment.pdf",
-          contentBase64: pdfBuffer.toString("base64"), // <- wajib guna contentBase64
-          type: "application/pdf",
+    const response = await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      data,
+      {
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
         },
-      ];
-    }
+      }
+    );
 
-    const response = await client.sendTransacEmail(sendSmtpEmail);
     console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
-    return response;
-
+    return response.data;
   } catch (err) {
     console.error("❌ Ralat hantar emel:", err.response?.data || err.message);
     throw err;
