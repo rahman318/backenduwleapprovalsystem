@@ -1,56 +1,55 @@
-import axios from "axios";
-import fs from "fs";
+// utils/emailService.js
+import Brevo from "@getbrevo/brevo";
 import dotenv from "dotenv";
 dotenv.config();
 
-const sendEmail = async ({ to, subject, html, attachments = [] }) => {
+/**
+ * sendEmail via Brevo SDK
+ * @param {Object} options
+ * @param {string} options.to - penerima email
+ * @param {string} options.subject - subject email
+ * @param {string} options.html - content HTML email
+ * @param {Buffer} [options.pdfBuffer] - optional PDF buffer
+ * @param {string} [options.pdfName] - nama PDF attachment
+ */
+async function sendEmail({ to, subject, html, pdfBuffer, pdfName }) {
   try {
-    const payload = {
-      sender: { name: "e-Approval System", email: "admin@underwaterworldlangkawi.com" },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-      attachment: [], // akan push attachment betul
-    };
-
-    for (const att of attachments) {
-      let base64Content = "";
-
-      if (att.path) {
-        const fileBuffer = fs.readFileSync(att.path);
-        base64Content = fileBuffer.toString("base64");
-      } else if (att.content && Buffer.isBuffer(att.content)) {
-        base64Content = att.content.toString("base64");
-      } else if (typeof att.content === "string") {
-        base64Content = att.content;
-      }
-
-      if (base64Content) {
-        payload.attachment.push({
-          name: att.filename,
-          content: base64Content,
-          type: att.type || "application/octet-stream", // pastikan MIME type
-        });
-      }
-    }
-
-    const response = await axios.post(
-      "https://api.brevo.com/v3/smtp/email",
-      payload,
-      {
-        headers: {
-          "api-key": process.env.BREVO_API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
+    // 🟢 setup Brevo client
+    const client = new Brevo.TransactionalEmailsApi();
+    client.setApiKey(
+      Brevo.TransactionalEmailsApiApiKeys.apiKey,
+      process.env.BREVO_API_KEY
     );
 
+    // 🟢 prepare email
+    const sendSmtpEmail = {
+      to: [{ email: to }],
+      sender: { email: "noreply@yourcompany.com", name: "e-Approval System" },
+      subject,
+      htmlContent: html,
+    };
+
+    // 🟢 attach PDF kalau ada
+    if (pdfBuffer) {
+      sendSmtpEmail.attachment = [
+        {
+          content: pdfBuffer.toString("base64"),
+          name: pdfName || "attachment.pdf",
+          type: "application/pdf",
+        },
+      ];
+    }
+
+    // 🟢 hantar email
+    const response = await client.sendTransacEmail(sendSmtpEmail);
     console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
-    return response.data;
+    return response;
+
   } catch (err) {
     console.error("❌ Ralat hantar emel:", err.response?.data || err.message);
     throw err;
   }
-};
+}
 
+// 🔥 export default supaya senang import
 export default sendEmail;
