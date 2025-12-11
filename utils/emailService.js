@@ -4,16 +4,7 @@ import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 
-/**
- * sendEmail
- * Hantar email via Brevo API
- * @param {Object} options
- * @param {string} options.to - penerima
- * @param {string} options.subject - subject email
- * @param {string} options.html - content email (HTML)
- * @param {Array} [options.attachments] - optional array attachment { filename, path?, content? (Buffer/base64) }
- */
-export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
+const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
     const payload = {
       sender: { name: "e-Approval System", email: "admin@underwaterworldlangkawi.com" },
@@ -23,19 +14,16 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
       attachment: [],
     };
 
-    // Process attachments (support buffer, path, or base64 string)
     for (const att of attachments) {
       let base64Content = null;
 
       if (att.content) {
-        // buffer atau base64 string
         if (Buffer.isBuffer(att.content)) {
           base64Content = att.content.toString("base64");
         } else {
-          base64Content = att.content; // assume already base64
+          base64Content = att.content;
         }
       } else if (att.path) {
-        // read file from path
         const fileBuffer = fs.readFileSync(att.path);
         base64Content = fileBuffer.toString("base64");
       }
@@ -67,4 +55,5 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   }
 };
 
+// default export
 export default sendEmail;
