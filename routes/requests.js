@@ -1,72 +1,205 @@
-// routes/requests.js
+// routes/request.js
 import express from "express";
-import Request from "../models/Requests.js";
-import User from "../models/user.js";
-import sendEmail from "../utils/emailService.js"; // ✅ pastikan utils/emailService.js ada
+import Request from "../models/request.js";
+import { verifyToken } from "../middleware/auth.js"; // middleware JWT
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+import { generatePDFWithLogo } from "../utils/generateGenericPDF.js";
 
 const router = express.Router();
 
-// CREATE Request
-router.post("/", async (req, res) => {
+// ================== MULTER SETUP ==================
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = "uploads/";
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
+
+// ================== CREATE REQUEST ==================
+router.post(
+  "/",
+  verifyToken,
+  upload.single("file"),
+  async (req, res) => {
   try {
-    const { userId, requestType, leaveDate, details, approver } = req.body;
+    const { userId, staffName, requestType, details, approvals, items, signatureStaff } = req.body;
 
-    // Cari user berdasarkan userId
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    // 🔹 Parse JSON fields
+    const parsedDetails = details ? JSON.parse(details) : {};
+    const parsedItems = items ? JSON.parse(items) : [];
+    const parsedApprovals = approvals ? JSON.parse(approvals) : [];
 
-    // Auto inject staffName
-    const newRequest = new Request({
-      userId,
-      staffName: user.username, // ✅ ambik dari username
-      requestType,
-      leaveDate,
-      details,
-      approver,
-    });
+    // 🔹 Handle approvals: hanya yang ada approverId
+    const approvalsData = Array.isArray(parsedApprovals)
+      ? parsedApprovals
+          .filter(a => a.approverId)
+          .map((a, idx) => ({
+            level: a.level || idx + 1,
+            approverId: a.approverId,
+            approverName: a.approverName || "-",
+            approverDepartment: a.approverDepartment || "-",
+            status: "Pending",
+            remark: "",
+            signature: null,
+            actionDate: null,
+          }))
+      : [];
 
-    await newRequest.save();
-
-    // 🔔 Hantar emel ke approver kalau ada
-    if (approver) {
-      const approverUser = await User.findById(approver);
-      if (approverUser?.email) {
-        const subject = `New Request from ${newRequest.staffName || "Staff"}`;
-        const text = `
-Hi ${approverUser.username || "Approver"},
-
-Anda ada request baru untuk semakan.
-
-Jenis Request: ${newRequest.requestType}
-Nama Staff: ${newRequest.staffName || "-"}
-Tarikh Cuti: ${newRequest.leaveDate || "-"}
-Keterangan: ${newRequest.details || "-"}
-
-Sila login ke e-Approval untuk tindakan.
-`;
-        sendEmail(approverUser.email, subject, text); // ✅ trigger email
-      }
+    // 🔹 Simpan attachments info (support multiple files)
+    let attachments = [];
+    if (req.files && req.files.length > 0) {
+      attachments = req.files.map(f => ({
+        originalName: f.originalname,
+        fileName: f.filename,
+        filePath: `/uploads/${f.filename}`,
+        mimetype: f.mimetype,
+        size: f.size,
+      }));
     }
 
-    res.status(201).json(newRequest);
-  } catch (error) {
-    console.error("Error creating request:", error);
-    res.status(500).json({ message: "Server error" });
+    console.log("FILE UPLOAD:", req.files); // debug bossskurrr
+
+    // 🔹 Legacy file (untuk front-end lama jika hanya satu file)
+    let legacyFile = req.files && req.files.length > 0 ? `/uploads/${req.files[0].filename}` : null;
+
+    const newRequest = new Request({
+      userId,
+      staffName,
+      staffDepartment: staffDepartment || "-",
+      requestType,
+      details: details ? JSON.parse(details) : {},
+      items: items ? JSON.parse(items) : [],
+      approvals: approvals ? JSON.parse(approvals) : [],
+      signatureStaff: signatureStaff || null,
+      file: legacyFile,       // legacy string path
+      attachments: attachments.length > 0 ? attachments : null, // object array
+      finalStatus: "Pending",
+    });
+
+    const savedRequest = await newRequest.save();
+
+    res.status(201).json({ success: true, data: savedRequest });
+  } catch (err) {
+    console.error("CREATE REQUEST ERROR:", err);
+    res.status(500).json({ success: false, message: "Server Error", error: err.message });
   }
 });
 
-// GET all Requests (untuk Admin/Approver)
-router.get("/", async (req, res) => {
+// ================== GET ALL REQUESTS ==================
+router.get("/", verifyToken, async (req, res) => {
   try {
-    const requests = await Request.find()
-      .populate("approver", "username email") // ✅ populate username & email
-      .populate("userId", "username email");   // ✅ populate username & email
-    res.json(requests);
-  } catch (error) {
-    console.error("Error fetching requests:", error);
-    res.status(500).json({ message: "Server error" });
+    const requests = await Request.find().sort({ createdAt: -1 });
+    res.json(requests.map(r => ({
+      ...r._doc,
+      fileUrl: r.fileUrl || null,
+      fileName: r.fileName || null,
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error fetching requests" });
   }
 });
 
+// ================== GET REQUESTS FOR APPROVER ==================
+router.get("/approver/:approverId", verifyToken, async (req, res) => {
+  try {
+    const { approverId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    let filter = { "approvals.approverId": approverId };
+    if (startDate && endDate) {
+      filter.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+
+    const requests = await Request.find(filter).sort({ createdAt: -1 });
+    res.json(requests.map(r => ({
+      ...r._doc,
+      fileUrl: r.fileUrl || null,
+      fileName: r.fileName || null,
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error fetching requests" });
+  }
+});
+
+// ================== APPROVE LEVEL ==================
+router.put("/approve/:requestId", verifyToken, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { approverId, remark, signature } = req.body;
+
+    const request = await Request.findById(requestId);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    const levelObj = request.approvals.find(a => a.approverId.toString() === approverId);
+    if (!levelObj) return res.status(404).json({ message: "Approval level not found" });
+    if (levelObj.status !== "Pending") return res.status(400).json({ message: "Already processed" });
+
+    levelObj.status = "Approved";
+    levelObj.remark = remark || "";
+    levelObj.signature = signature || null;
+    levelObj.actionDate = new Date();
+
+    if (request.approvals.every(a => a.status === "Approved")) request.finalStatus = "Approved";
+
+    await request.save();
+    res.json({ message: "Request approved!", request });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error approve request" });
+  }
+});
+
+// ================== REJECT LEVEL ==================
+router.put("/reject/:requestId", verifyToken, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { approverId, remark, signature } = req.body;
+
+    const request = await Request.findById(requestId);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    const levelObj = request.approvals.find(a => a.approverId.toString() === approverId);
+    if (!levelObj) return res.status(404).json({ message: "Approval level not found" });
+    if (levelObj.status !== "Pending") return res.status(400).json({ message: "Already processed" });
+
+    levelObj.status = "Rejected";
+    levelObj.remark = remark || "";
+    levelObj.signature = signature || null;
+    levelObj.actionDate = new Date();
+
+    request.finalStatus = "Rejected";
+
+    await request.save();
+    res.json({ message: "Request rejected!", request });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error reject request" });
+  }
+});
+
+// ================== DOWNLOAD PDF ==================
+router.get("/:id/pdf", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pdfBuffer = await generatePDFWithLogo(id);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=Permohonan_${id}.pdf`);
+    res.send(Buffer.from(pdfBuffer));
+  } catch (err) {
+    console.error("❌ PDF generate error:", err);
+    res.status(500).send("PDF gagal dijana");
+  }
+});
 
 export default router;
