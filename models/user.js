@@ -13,21 +13,9 @@ const userSchema = new mongoose.Schema(
     },
     department: { type: String },
     level: { 
-      type: Number, 
-      required: function() { return this.role === "approver"; } 
-    },
-    phone: { 
-      type: String, 
-      required: true, 
-      unique: true,
-      validate: {
-        validator: function(v) {
-          // simple regex: start with +, followed by numbers, length 9-15
-          return /^\+\d{9,15}$/.test(v);
-        },
-        message: props => `${props.value} bukan nombor telefon yang sah! Gunakan format +60123456789`
-      }
-    },
+  type: Number, 
+  required: function() { return this.role === "approver"; } 
+},
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
   },
@@ -47,4 +35,3 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 // ✅ Cun-cun export untuk elak OverwriteModelError
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 export default User;
-
