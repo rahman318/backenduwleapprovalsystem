@@ -24,7 +24,7 @@ const __dirname = path.dirname(__filename);
 // ==========================
 app.use(
   cors({
-    origin: "http://localhost:5173", // ✅ React dev URL
+    origin: "https://backenduwleapprovalsystem.onrender.com", // ✅ React dev URL
     credentials: true,
   })
 );
@@ -66,3 +66,4 @@ connectDB();
 // ==========================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
