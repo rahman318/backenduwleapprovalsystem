@@ -1,7 +1,7 @@
 // backend/routes/requestRoutes.js
 import express from "express";
-import upload from "../middleware/upload.js";
-import authMiddleware from "../middleware/authMiddleware.js";
+import upload from "../Middleware/upload.js";
+import authMiddleware from "../Middleware/authMiddleware.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
@@ -83,3 +83,4 @@ router.get("/:id/pdf", async (req, res) => {
 
 
 export default router;
+
