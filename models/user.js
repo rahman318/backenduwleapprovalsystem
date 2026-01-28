@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 
 const userSchema = new mongoose.Schema(
   {
@@ -13,39 +12,39 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     department: { type: String },
+    level: { 
+      type: Number, 
+      required: function() { return this.role === "approver"; } 
+    },
+    phone: { 
+      type: String, 
+      required: true, 
+      unique: true,
+      validate: {
+        validator: function(v) {
+          // simple regex: start with +, followed by numbers, length 9-15
+          return /^\+\d{9,15}$/.test(v);
+        },
+        message: props => `${props.value} bukan nombor telefon yang sah! Gunakan format +60123456789`
+      }
+    },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
   },
-  { timestamps: true }
+  { timestamps: true } // ⏰ Auto add createdAt & updatedAt
 );
-
-// 🔐 Auto hash password sebelum save
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
 
 // 🔑 Compare password
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  try {
+    return await bcrypt.compare(enteredPassword, this.password);
+  } catch (error) {
+    console.error("Password comparison error:", error);
+    return false;
+  }
 };
 
-// 🔁 Generate reset password token
-userSchema.methods.createPasswordResetToken = function () {
-  const resetToken = crypto.randomBytes(32).toString("hex");
-
-  this.resetPasswordToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
-
-  this.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
-
-  return resetToken;
-};
-
-const User = mongoose.model("User", userSchema);
+// ✅ Cun-cun export untuk elak OverwriteModelError
+const User = mongoose.models.User || mongoose.model("User", userSchema);
 export default User;
+
