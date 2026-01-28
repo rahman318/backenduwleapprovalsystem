@@ -2,7 +2,7 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import QRCode from "qrcode";
 
-export async function generateRequestPDF(request) {
+const generatePDF = async (request) => {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595, 842]); // A4
   const { width } = page.getSize();
@@ -12,23 +12,18 @@ export async function generateRequestPDF(request) {
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  // ---------------- HEADER PREMIUM ----------------
+  // ---------------- HEADER ----------------
   page.drawText("UNDERWATER WORLD LANGKAWI SDN BHD", { x: margin, y, size: 14, font: bold, color: rgb(0.1, 0.1, 0.5) });
   y -= 18;
   page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1.5, color: rgb(0.1, 0.1, 0.5) });
   y -= 25;
 
-  // ---------------- TITLE PREMIUM ----------------
+  // ---------------- TITLE ----------------
   let title = "";
-  switch (request.requestType) {
-    case "Pembelian":
-      title = "BORANG PERMOHONAN PEMBELIAN";
-      break;
-    case "Cuti":
-      title = "BORANG PERMOHONAN CUTI";
-      break;
-    default:
-      title = `PERMOHONAN ${request.requestType?.toUpperCase() || "-"}`;
+  switch (request.requestType?.toLowerCase()) {
+    case "pembelian": title = "BORANG PERMOHONAN PEMBELIAN"; break;
+    case "cuti": title = "BORANG PERMOHONAN CUTI"; break;
+    default: title = `PERMOHONAN ${request.requestType?.toUpperCase() || "-"}`;
   }
 
   page.drawRectangle({
@@ -42,16 +37,14 @@ export async function generateRequestPDF(request) {
   y -= 30;
 
   // ---------------- STAFF INFO ----------------
-  const sectionBackground = rgb(0.95, 0.95, 0.95);
   function drawSectionHeading(text) {
-    page.drawRectangle({ x: margin - 5, y: y - 5, width: width - margin * 2 + 10, height: 20, color: sectionBackground });
-    page.drawText(text, { x: margin, y, size: 12, font: bold, color: rgb(0.2, 0.2, 0.2) });
+    page.drawRectangle({ x: margin - 5, y: y - 5, width: width - margin * 2 + 10, height: 20, color: rgb(0.95,0.95,0.95) });
+    page.drawText(text, { x: margin, y, size: 12, font: bold, color: rgb(0.2,0.2,0.2) });
     y -= 25;
   }
 
   drawSectionHeading("Maklumat Staff");
 
-  // ✅ fallback: ambil department dari userId populate kalau staffDepartment kosong
   const staffDept = request.staffDepartment && request.staffDepartment !== "-"
     ? request.staffDepartment
     : request.userId?.department || "-";
@@ -63,62 +56,27 @@ export async function generateRequestPDF(request) {
   page.drawText(`Tarikh Permohonan: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString("ms-MY") : "-"}`, { x: margin, y, size: 11, font });
   y -= 20;
 
-  // ---------------- CONTENT BERBEZA ----------------
-  if (request.requestType === "Pembelian") {
+  // ---------------- CONTENT ----------------
+  if (request.requestType?.toLowerCase() === "pembelian") {
     drawSectionHeading("Senarai Barang");
-
     const tableX = margin;
     const rowHeight = 22;
     const headers = ["Bil", "Nama Barang", "Kuantiti", "Catatan"];
     const colWidths = [40, 260, 80, 120];
 
-    // Header
-    page.drawRectangle({
-      x: tableX,
-      y,
-      width: colWidths.reduce((a, b) => a + b, 0),
-      height: rowHeight,
-      color: rgb(0.9, 0.9, 1),
-      borderColor: rgb(0.1, 0.1, 0.5),
-      borderWidth: 1,
-    });
-    headers.forEach((header, i) => {
-      page.drawText(header, {
-        x: tableX + colWidths.slice(0, i).reduce((a, b) => a + b, 0) + 5,
-        y: y + 6,
-        size: 10,
-        font: bold,
-        color: rgb(0.1, 0.1, 0.5),
-      });
-    });
+    page.drawRectangle({ x: tableX, y, width: colWidths.reduce((a,b)=>a+b,0), height: rowHeight, color: rgb(0.9,0.9,1) });
+    headers.forEach((h,i) => page.drawText(h, { x: tableX + colWidths.slice(0,i).reduce((a,b)=>a+b,0) + 5, y: y+6, size: 10, font: bold, color: rgb(0.1,0.1,0.5) }));
     y -= rowHeight;
 
     const items = request.items || [];
-    items.forEach((item, index) => {
-      const rowColor = index % 2 === 0 ? rgb(1,1,1) : rgb(0.95,0.95,0.98);
-      page.drawRectangle({
-        x: tableX,
-        y,
-        width: colWidths.reduce((a,b)=>a+b,0),
-        height: rowHeight,
-        color: rowColor,
-      });
-
-      const row = [String(index + 1), item.itemName || "-", String(item.quantity || "-"), item.remarks || "-"];
-      row.forEach((text, i) => {
-        page.drawText(text, {
-          x: tableX + colWidths.slice(0, i).reduce((a,b)=>a+b,0) + (i === 0 || i === 2 ? colWidths[i]/2 - (text.length*2) : 5),
-          y: y + 6,
-          size: 10,
-          font,
-          color: rgb(0,0,0),
-        });
-      });
+    items.forEach((item, idx) => {
+      page.drawRectangle({ x: tableX, y, width: colWidths.reduce((a,b)=>a+b,0), height: rowHeight, color: idx % 2 === 0 ? rgb(1,1,1) : rgb(0.95,0.95,0.98) });
+      const row = [String(idx+1), item.itemName || "-", String(item.quantity || "-"), item.remarks || "-"];
+      row.forEach((text,i) => page.drawText(text, { x: tableX + colWidths.slice(0,i).reduce((a,b)=>a+b,0)+5, y:y+6, size:10, font, color: rgb(0,0,0) }));
       y -= rowHeight;
     });
-
     y -= 15;
-  } else if (request.requestType === "Cuti") {
+  } else if (request.requestType?.toLowerCase() === "cuti") {
     drawSectionHeading("Maklumat Cuti");
     page.drawText(`Tempoh: ${request.leaveStart ? new Date(request.leaveStart).toLocaleDateString("ms-MY") : "-"} - ${request.leaveEnd ? new Date(request.leaveEnd).toLocaleDateString("ms-MY") : "-"}`, { x: margin, y, size: 11, font });
     y -= 16;
@@ -130,58 +88,41 @@ export async function generateRequestPDF(request) {
     y -= 15;
   }
 
-  // ---------------- APPROVER INFO ----------------
+  // ---------------- APPROVERS ----------------
   drawSectionHeading("Maklumat Approver");
-  page.drawText(`Status: ${request.status || "Pending"}`, { x: margin, y, size: 11, font });
-  y -= 16;
-  page.drawText(`Nama: ${request.approverName || "-"}`, { x: margin, y, size: 11, font });
-  y -= 16;
-  page.drawText(`Jabatan / Unit: ${request.approverDepartment || "-"}`, { x: margin, y, size: 11, font });
-  y -= 30;
+  const approvals = request.approvals || [];
+  for (const a of approvals) {
+    if (y < 150) { page.addPage([595,842]); y = 800; }
 
-// 🟢 Signature Staff
-const sigWidth = 150;
-const sigHeight = 50;
-const sigY = y - 40; // letak signature di bawah content
-const labelOffset = 12; // jarak untuk label
+    page.drawText(`Level ${a.level}: ${a.approverName || "-"} - Status: ${a.status || "-"}`, { x: margin, y, size: 11, font });
+    y -= 16;
 
-if (request.signatureStaff) {
-  const staffSigImage = await pdf.embedPng(request.signatureStaff);
-  page.drawText("Staff Signature", { x: margin, y: sigY + sigHeight + 5, size: 10, font, color: rgb(0,0,0) });
-  page.drawImage(staffSigImage, {
-    x: margin,
-    y: sigY,
-    width: sigWidth,
-    height: sigHeight,
-  });
-}
-
-if (request.signatureApprover) {
-  const approverSigImage = await pdf.embedPng(request.signatureApprover);
-  page.drawText("Approver Signature", { x: width - margin - sigWidth, y: sigY + sigHeight + 5, size: 10, font, color: rgb(0,0,0) });
-  page.drawImage(approverSigImage, {
-    x: width - margin - sigWidth,
-    y: sigY,
-    width: sigWidth,
-    height: sigHeight,
-  });
-}
+    // Signature safe embed
+    if (a.signature && a.signature.startsWith("data:image")) {
+      try {
+        const base64Sig = a.signature.split(",")[1];
+        const sigImg = await pdf.embedPng(Uint8Array.from(Buffer.from(base64Sig, "base64")));
+        page.drawImage(sigImg, { x: margin + 20, y, width: 150, height: 50 });
+        y -= 60;
+      } catch (err) {
+        console.warn("Gagal load signature", err);
+        y -= 16;
+      }
+    }
+  }
 
   // ---------------- QR CODE ----------------
-  const qrData = `Request ID: ${request._id}`;
-  const qrImageData = await QRCode.toDataURL(qrData);
-  const qrImage = await pdf.embedPng(qrImageData);
+  const qrDataURL = await QRCode.toDataURL(`Request ID: ${request._id}`);
+  const qrBase64 = qrDataURL.split(",")[1];
+  const qrImage = await pdf.embedPng(Uint8Array.from(Buffer.from(qrBase64, "base64")));
   page.drawImage(qrImage, { x: width - 130, y: 70, width: 80, height: 80 });
 
-  // ---------------- FOOTER PREMIUM ----------------
-  page.drawRectangle({ x: margin - 5, y: 50, width: width - margin*2 + 10, height: 20, color: rgb(0.9,0.9,1) });
-  page.drawText("Dokumen ini dijana secara automatik melalui Sistem e-Approval.", {
-    x: margin,
-    y: 55,
-    size: 8,
-    font,
-    color: rgb(0.1,0.1,0.5)
-  });
+  // ---------------- FOOTER ----------------
+  page.drawRectangle({ x: margin-5, y: 50, width: width-margin*2+10, height: 20, color: rgb(0.9,0.9,1) });
+  page.drawText("Dokumen dijana secara automatik melalui Sistem e-Approval.", { x: margin, y:55, size:8, font, color: rgb(0.1,0.1,0.5) });
 
-  return await pdf.save();
-}
+  // ---------------- RETURN ----------------
+  return pdf.save(); // ✅ Uint8Array, safe to send to frontend
+};
+
+export default generatePDF;
