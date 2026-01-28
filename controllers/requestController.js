@@ -1,269 +1,331 @@
 // controllers/requestController.js
 import Request from "../models/Requests.js";
-import sendEmail from "../utils/emailService.js"; // pakai versi REST API
-import { sendEmailWithPDF } from "../utils/sendEmailWithPDF.js";
-import { generateRequestPDF } from "../utils/generatePDF.js";
+import sendEmail from "../utils/emailService.js";
+import { generateGenericPDF } from "../utils/generateGenericPDF.js";
+import generatePDF from "../utils/generatePDF.js";
 import fs from "fs";
 
-// 🟢 CREATE REQUEST
+// ================== DELETE REQUEST ==================
+export const deleteRequestById = async (req, res) => {
+  try {
+    const request = await Request.findByIdAndDelete(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    res.json({ message: "Request deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================== CREATE REQUEST ==================
 export const createRequest = async (req, res) => {
   try {
-    const { 
-      userId, 
-      staffName, 
-      requestType, 
-      approver, 
-      approverName,
-      approverDepartment,
-      leaveStart, 
-      leaveEnd, 
+    const {
+      userId,
+      staffName,
+      staffDepartment,
+      requestType,
       details,
-      signatureStaff 
+      signatureStaff,
+      leaveStart,
+      leaveEnd,
+      items,
+      approvals,
     } = req.body;
 
-    let fileUrl = null;
-    if (req.file) {
-      fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+ // ================== GENERATE SERIAL NUMBER ==================
+    const lastRequest = await Request.findOne().sort({ createdAt: -1 });
+
+    let lastNumber = 0;
+    if (lastRequest && lastRequest.serialNumber) {
+      const parts = lastRequest.serialNumber.split("-");
+      lastNumber = parseInt(parts[2]) || 0;
+    }
+
+    const year = new Date().getFullYear();
+    const serialNumber = `REQ-${year}-${String(lastNumber + 1).padStart(4, "0")}`;
+    // ============================================================
+
+    // ================== FIX ATTACHMENTS ==================
+const attachments = [];
+
+if (req.file) {
+  attachments.push({
+    originalName: req.file.originalname,
+    fileName: req.file.filename,
+    filePath: req.file.path,
+    mimetype: req.file.mimetype,
+    size: req.file.size,
+  });
+}
+
+    // ================= FIX APPROVALS =================
+    let approvalsData = [];
+    if (approvals) {
+      let parsedApprovals = approvals;
+      if (typeof approvals === "string") {
+        try {
+          parsedApprovals = JSON.parse(approvals);
+        } catch {
+          parsedApprovals = [];
+        }
+      }
+      if (Array.isArray(parsedApprovals)) {
+        approvalsData = parsedApprovals.map((a, index) => ({
+          level: a.level || index + 1,
+          approverId: a.approverId || null,
+          approverName: a.approverName || "-",
+          approverDepartment: a.approverDepartment || "-",
+          status: "Pending",
+          remark: "",
+          signature: null,
+          actionDate: null,
+        }));
+      }
+    }
+
+    // ===================== FIX MULTI-ITEM =====================
+    let itemsData = [];
+    if (items) {
+      if (typeof items === "string") {
+        try {
+          itemsData = JSON.parse(items);
+          if (!Array.isArray(itemsData)) itemsData = [];
+        } catch {
+          itemsData = [];
+        }
+      } else if (Array.isArray(items)) {
+        itemsData = items;
+      }
+
+      itemsData = itemsData.map((item) => ({
+        itemName: item.itemName || item.description || "-",
+        quantity: Number(item.quantity) || Number(item.qty) || 0,
+        estimatedCost: Number(item.estimatedCost) || 0,
+        supplier: item.supplier || "",
+        reason: item.reason || item.remarks || "-",
+        startDate: item.startDate ? new Date(item.startDate) : null,
+        endDate: item.endDate ? new Date(item.endDate) : null,
+      }));
     }
 
     const newRequest = new Request({
       userId,
       staffName,
-      staffDepartment: req.body.staffDepartment,
+      staffDepartment: staffDepartment || "-",
       requestType,
-      approver,
-      approverName,
-      approverDepartment,
-      details,
-      signatureStaff,
-      file: fileUrl,
+      details: details || "",
+      signatureStaff: signatureStaff || "",
+      attachments: attachments, // ✅ fixed
       leaveStart: requestType === "Cuti" ? leaveStart : undefined,
       leaveEnd: requestType === "Cuti" ? leaveEnd : undefined,
-      items: requestType === "Pembelian" ? JSON.parse(req.body.items || "[]") : undefined
+      items: itemsData,
+      approvals: approvalsData,
+      serialNumber,
+      finalStatus: "Pending",
     });
 
     await newRequest.save();
 
     const populatedRequest = await Request.findById(newRequest._id)
-      .populate("approver", "username department email");
+      .populate("userId", "username department email")
+      .populate("approvals.approverId", "username department email");
 
-    // 🔄 Generate PDF buffer
-    let pdfBuffer = null;
+    // generate PDF optional
     try {
-      pdfBuffer = await generateRequestPDF(populatedRequest);
-      console.log("📄 PDF dijana buffer siap dihantar");
+      if (!fs.existsSync("generated_pdfs")) fs.mkdirSync("generated_pdfs");
+      const pdfBuffer = await generateRequestPDF(populatedRequest);
+      const safeType = requestType.toLowerCase().replace(/\s+/g, "_");
+      const pdfPath = `generated_pdfs/${newRequest._id}_${safeType}.pdf`;
+      fs.writeFileSync(pdfPath, pdfBuffer);
     } catch (pdfErr) {
-      console.error("❌ Error jana PDF:", pdfErr.message);
+      console.error("❌ Error generate PDF:", pdfErr.message);
     }
 
-    // 📨 Hantar email kepada approver
-    if (populatedRequest?.approver?.email) {
+    // send email to approvers
+    for (const approval of populatedRequest.approvals) {
+      if (!approval.approverId?.email) continue;
       const subject = `Permohonan Baru Dari ${staffName}`;
       const html = `
-        <h2>Notifikasi Permohonan Baru</h2>
-        <p>Hi <b>${populatedRequest.approver?.username || approverName || "Approver"}</b>,</p>
-        <p>Anda mempunyai permohonan baru untuk disemak.</p>
-        <p><b>Nama Staff:</b> ${staffName}</p>
+        <p>Hi ${approval.approverId.username || approval.approverName || "Approver"},</p>
+        <p>Anda mempunyai permohonan baru untuk semakan.</p>
         <p><b>Jenis Permohonan:</b> ${requestType}</p>
         <p><b>Butiran:</b> ${details || "-"}</p>
         ${
           requestType === "Cuti"
-            ? `<p><b>Tarikh Mula:</b> ${leaveStart}</p>
-               <p><b>Tarikh Tamat:</b> ${leaveEnd}</p>`
+            ? `<p><b>Tarikh Mula:</b> ${leaveStart}</p><p><b>Tarikh Tamat:</b> ${leaveEnd}</p>`
+            : ""
+        }
+        ${
+          itemsData.length
+            ? `<hr/><p><b>Senarai Item:</b></p><ul>${itemsData
+                .map(
+                  (i, idx) =>
+                    `<li>${idx + 1}. ${i.itemName} | Qty: ${i.quantity} | ${i.reason || "-"}</li>`
+                )
+                .join("")}</ul>`
             : ""
         }
         <hr/>
-        <p>Sila log masuk untuk semak:</p>
-        <p><a href="https://uwleapprovalsystem.onrender.com">Buka Dashboard</a></p>
-        <br/>
-        <p>Terima kasih,<br/>Sistem e-Approval</p>
+        <p>Sila log masuk dashboard untuk semakan.</p>
       `;
-
       try {
-        await sendEmail({
-          to: populatedRequest.approver.email,
-          subject,
-          html,
-          pdfBuffer,
-          pdfName: `request_${newRequest._id}.pdf`
-        });
-        console.log("📨 Emel notifikasi dihantar kepada approver!");
+        await sendEmail({ to: approval.approverId.email, subject, html });
       } catch (emailErr) {
-        console.error("❌ Gagal menghantar emel approver:", emailErr.message);
+        console.error("❌ Gagal hantar email:", emailErr.message);
       }
     }
 
     res.status(201).json(populatedRequest);
-
   } catch (err) {
-    console.error("❌ Error createRequest:", err.message);
+    console.error("❌ createRequest error:", err.message);
     res.status(500).json({ message: "Gagal simpan request", error: err.message });
   }
 };
 
-// 🟡 GET SEMUA REQUEST
+// ================== GET ALL REQUEST ==================
 export const getRequests = async (req, res) => {
   try {
     const requests = await Request.find()
-      .populate("userId", "username email role")
-      .populate("approver", "username email role")
+      .populate("userId", "username department email")
+      .populate("approvals.approverId", "username department email")
       .sort({ createdAt: -1 });
 
     res.status(200).json(requests);
   } catch (err) {
-    console.error("❌ Error getRequests:", err.message);
-    res.status(500).json({ message: "Gagal ambil senarai request" });
+    console.error("❌ getRequests error:", err.message);
+    res.status(500).json({ message: "Gagal ambil senarai request", error: err.message });
   }
 };
 
-// 📄 GET PDF EXISTING
-export const getPDFforRequest = async (req, res) => {
+// ================== APPROVE LEVEL ==================
+export const approveLevel = async (req, res) => {
   try {
-    const { id } = req.params;
-    const request = await Request.findById(id);
+    const request = await Request.findById(req.params.id).populate("userId");
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    const safeType = request.requestType.toLowerCase().replace(/\s+/g, "_");
-    const pdfPath = `generated_pdfs/${id}_${safeType}.pdf`;
+    const levelToApprove = request.approvals.find(
+      (a) => a.approverId?.toString() === req.user._id.toString()
+    );
+    if (!levelToApprove) return res.status(403).json({ message: "Not authorized to approve" });
 
-    if (!fs.existsSync(pdfPath)) return res.status(404).json({ message: "PDF not found" });
+    levelToApprove.status = "Approved";
+    levelToApprove.actionDate = new Date();
+    if (req.body.signatureApprover) levelToApprove.signature = req.body.signatureApprover;
 
-    res.sendFile(`${process.cwd()}/${pdfPath}`);
+    // ✅ Check all levels
+    const allApproved = request.approvals.every((a) => a.status === "Approved");
+    if (allApproved) request.finalStatus = "Approved";
+
+    // ================== FINAL APPROVAL ==================
+    if (allApproved) {
+      // 🔥 Generate PDF
+      const pdfBuffer = await generateGenericPDF(request);
+
+      // 🔥 Send email to staff
+      const staffEmail = request.userId?.email; // <-- ikut populate
+      if (staffEmail) {
+        await sendEmail({
+          to: staffEmail,
+          subject: "Permohonan Anda Telah Diluluskan",
+          html: `
+            <p>Assalamualaikum ${request.staffName},</p>
+            <p>Permohonan anda telah <b>DILULUSKAN</b>.</p>
+            <p>Sila rujuk PDF yang dilampirkan.</p>
+            <br/>
+            <p>Terima kasih.</p>
+          `,
+          attachments: [
+            {
+              filename: `Permohonan_${request._id}.pdf`,
+              content: pdfBuffer,
+            },
+          ],
+        });
+      }
+    }
+
+    await request.save();
+
+    res.status(200).json({
+      message: "Level approved",
+      request,
+    });
   } catch (err) {
-    console.error("❌ getPDFforRequest error:", err.message);
-    res.status(500).json({ message: "Failed to fetch PDF", error: err.message });
+    console.error("❌ approveLevel error:", err.message);
+    res.status(500).json({
+      message: "Gagal approve level",
+      error: err.message,
+    });
   }
 };
 
-// 📄 GENERATE PDF ON THE FLY
-export const getRequestPDF = async (req, res) => {
+
+// ================== REJECT LEVEL ==================
+export const rejectLevel = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    const pdfBytes = await generateRequestPDF(request);
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename=request-${request._id}.pdf`
+    const levelToReject = request.approvals.find(
+      (a) => a.approverId?.toString() === req.user._id.toString()
     );
+    if (!levelToReject) return res.status(403).json({ message: "Not authorized to reject" });
 
-    res.send(pdfBytes);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Gagal generate PDF", error: err.message });
-  }
-};
+    levelToReject.status = "Rejected";
+    levelToReject.actionDate = new Date();
+    if (req.body.signatureApprover) levelToReject.signature = req.body.signatureApprover;
 
-// ✍️ APPROVE REQUEST + SEND EMAIL + PDF
-export const approveRequest = async (req, res) => {
-  try {
-    const request = await Request.findById(req.params.id)
-      .populate("userId", "username email")
-      .populate("approver", "username email");
+    request.finalStatus = "Rejected";
 
-    if (!request) return res.status(404).json({ message: "Request not found" });
-
-    request.status = "Approved";
-    request.signatureApprover = req.body.signatureApprover || null;
-    request.updatedAt = Date.now();
     await request.save();
-
-    const pdfBuffer = await generateRequestPDF(request);
-
-    const staffEmail = request.userId?.email;
-    const staffName = request.userId?.username || request.staffName;
-    const approverName = request.approver?.username || request.approverName || "Approver";
-
-    if (staffEmail) {
-      const html = `
-        <h2>Notifikasi e-Approval</h2>
-        <p>Hi <b>${staffName}</b>,</p>
-        <p>Permohonan anda telah <b style="color:green;">DILULUSKAN</b> oleh ${approverName}.</p>
-        <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
-        <p><b>Butiran:</b> ${request.details || "-"}</p>
-        <hr/>
-        <p>Terima kasih,<br/>Sistem e-Approval</p>
-      `;
-
-      try {
-        await sendEmail({
-          to: staffEmail,
-          subject: `✅ Permohonan Diluluskan`,
-          html,
-          pdfBuffer,
-          pdfName: `approved_${request._id}.pdf`
-        });
-        console.log("📨 Approved email sent to staff (PDF attached)");
-      } catch (emailErr) {
-        console.error("❌ Gagal hantar email approve:", emailErr.message);
-      }
-    }
-
-    res.status(200).json({ message: "Request approved & email sent", request });
+    res.status(200).json({ message: "Level rejected", request });
   } catch (err) {
-    console.error("❌ approveRequest error:", err.message);
-    res.status(500).json({ message: "Gagal approve request", error: err.message });
+    console.error("❌ rejectLevel error:", err.message);
+    res.status(500).json({ message: "Gagal reject level", error: err.message });
   }
 };
 
-// 🔵 UPDATE STATUS + REGENERATE PDF + EMAIL (APPROVE/REJECT)
-export const updateRequestStatus = async (req, res) => {
+// ================== GET PDF ==================
+export const downloadGenericPDF = async (req, res) => {
   try {
-    const { status } = req.body;
-    if (!["Pending", "Approved", "Rejected"].includes(status)) {
-      return res.status(400).json({ message: "Status tak sah" });
-    }
+    const { id } = req.params;
 
-    const request = await Request.findByIdAndUpdate(
-      req.params.id,
-      { status, updatedAt: Date.now() },
-      { new: true }
-    )
-      .populate("userId", "username email")
-      .populate("approver", "username email department");
+    const request = await Request.findById(id).populate("approvals userId");
+    if (!request) return res.status(404).json({ message: "Request tak jumpa" });
 
-    if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
+    const pdfBytes = await generateGenericPDF(request);
 
-    console.log("✅ Status dikemaskini:", request.status);
-
-    const pdfBuffer = await generateRequestPDF(request);
-
-    const normalizedStatus = status.toLowerCase();
-    const staffEmail = request.userId?.email;
-    const staffName = request.userId?.username || request.staffName;
-    const approverName = request.approver?.username || request.approverName || "Approver";
-
-    if (staffEmail && ["approved","rejected"].includes(normalizedStatus)) {
-      const html = `
-        <h2>Notifikasi e-Approval</h2>
-        <p>Hi <b>${staffName}</b>,</p>
-        <p>Permohonan anda telah <b>${status}</b> oleh ${approverName}.</p>
-        <p><b>Jenis Permohonan:</b> ${request.requestType}</p>
-        <p><b>Butiran:</b> ${request.details || "-"}</p>
-        <hr/>
-        <p>Terima kasih,<br/>Sistem e-Approval</p>
-      `;
-
-      try {
-        await sendEmail({
-          to: staffEmail,
-          subject: `Permohonan Anda Telah ${status}`,
-          html,
-          pdfBuffer: normalizedStatus === "approved" ? pdfBuffer : null,
-          pdfName: `approved_${request._id}.pdf`
-        });
-        console.log("📨 Email status sent to staff (PDF attached if Approved)");
-      } catch (emailErr) {
-        console.error("❌ Gagal hantar email status:", emailErr.message);
-      }
-    }
-
-    res.status(200).json(request);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=Request_${id}.pdf`,
+    });
+    res.send(Buffer.from(pdfBytes));
   } catch (err) {
-    console.error("❌ Error updateRequestStatus:", err.message);
-    res.status(500).json({ message: "Gagal update status request" });
+    console.error("❌ Generic PDF error:", err);
+    res.status(500).json({ message: "Gagal jana PDF" });
   }
 };
 
+export const downloadPurchasePDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await Request.findById(id).populate("approvals userId");
+    if (!request) return res.status(404).json({ message: "Request tak jumpa" });
+
+    const pdfBytes = await generatePDF(request);
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=Purchase_${id}.pdf`,
+    });
+    res.send(Buffer.from(pdfBytes));
+  } catch (err) {
+    console.error("❌ Purchase PDF error:", err);
+    res.status(500).json({ message: "Gagal jana PDF" });
+  }
+};
