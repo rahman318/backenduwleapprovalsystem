@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import multer from "multer";
 
 import usersRoutes from "./routes/userRoutes.js";
 import requestRoutes from "./routes/requestRoutes.js";
@@ -14,31 +15,29 @@ dotenv.config();
 
 const app = express();
 
-// 🧠 ES module: dapatkan __dirname
+// 🧠 Dapatkan __dirname dalam ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ==========================
-// 🛡️ CORS - versi selamat
+// 🧱 MIDDLEWARE
 // ==========================
+app.use(
+  cors({
+    origin: "http://localhost:5173", // ✅ React dev URL
+    credentials: true,
+  })
+);
 
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+app.use(express.json({ limit: "10mb" })); // untuk parse JSON besar
+app.use(express.urlencoded({ extended: true })); // untuk form data
 
-// ==========================
-// 🧱 Middleware
-// ==========================
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
-
-// ✅ Serve static folders
+// ✅ Serve static folder (uploads, images, etc.)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/generated_pdfs", express.static(path.join(__dirname, "generated_pdfs")));
 
 // ==========================
-// 🚀 API Routes
+// 🚀 ROUTES
 // ==========================
 app.use("/api/users", usersRoutes);
 app.use("/api/requests", requestRoutes);
@@ -46,24 +45,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
 
 // ==========================
-// 🌐 Serve React build
-// ==========================
-
-app.use(express.static(path.join(__dirname, "dist")));
-
-app.get("*", (req, res) => {
-  if (
-    !req.path.startsWith("/api") &&
-    !req.path.startsWith("/assets") &&
-    !req.path.startsWith("/uploads") &&
-    !req.path.startsWith("/generated_pdfs")
-  ) {
-    res.sendFile(path.join(__dirname, "dist", "index.html"));
-  }
-});
-
-// ==========================
-// ⚙️ MongoDB Connection
+// ⚙️ DATABASE CONNECTION
 // ==========================
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -80,19 +62,7 @@ const connectDB = async () => {
 connectDB();
 
 // ==========================
-// 🖥️ Start Server
+// 🖥️ START SERVER
 // ==========================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`🚀 Server running at http://localhost:${PORT}`)
-);
-
-
-
-
-
-
-
-
-
-
+app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
