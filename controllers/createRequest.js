@@ -1,73 +1,102 @@
 import Request from "../models/Request.js";
-import User from "../models/user.js"; // pastikan import User untuk dapat staff info
+import User from "../models/user.js";
+import sendEmail from "../utils/sendEmail.js"; // helper untuk Nodemailer
 
-// @desc Create new staff request
-// @route POST /api/requests
-// @access Private
 export const createRequest = async (req, res) => {
   try {
-    console.log("📦 req.body:", req.body);   
-    console.log("📂 req.file:", req.file);   
+    
+    // 🔍 DEBUG FILE – LETAK SINI
+    console.log("FILE:", req.file);
+    console.log("BODY:", req.body);
 
-    const { userId, staffName, requestType, details, approver, approverName, approverDepartment } = req.body;
+const { userId, staffName, requestType, details, approvals, signatureStaff } = req.body;
 
-    // validation
-    if (!userId || !staffName || !requestType || !approver) {
-      return res.status(400).json({ message: "All required fields must be provided" });
+    if (!userId || !staffName || !requestType) {
+      return res.status(400).json({ message: "Field wajib tidak lengkap" });
     }
 
-    // ✅ ambil maklumat staff dari DB
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const staff = await User.findById(userId);
+    const staffDepartment = staff?.department || "-";
+
+    // 🔥 Handle approvals, hanya yang ada approverId
+    let approvalsData = [];
+
+    if (approvals) {
+      let parsedApprovals = approvals;
+
+      if (typeof approvals === "string") {
+        try {
+          parsedApprovals = JSON.parse(approvals);
+        } catch (e) {
+          console.warn("❌ Failed parse approvals");
+          parsedApprovals = [];
+        }
+      }
+
+      if (Array.isArray(parsedApprovals)) {
+        approvalsData = parsedApprovals
+          .filter(a => a.approverId) // ❌ buang yang null/undefined
+          .map((a, index) => ({
+            level: a.level || index + 1,
+            approverId: a.approverId,
+            approverName: a.approverName || "-",
+            approverDepartment: a.approverDepartment || "-",
+            status: "Pending",
+            remark: "",
+            signature: null,
+            actionDate: null,
+          }));
+      }
+    }
+
+// 🔥 FILE DATA – INI TEMPAT YANG BETUL
+const attachments = [];
+
+if (req.file) {
+  attachments.push({
+    originalName: req.file.originalname,
+    fileName: req.file.filename,
+    filePath: req.file.path,
+    mimetype: req.file.mimetype,
+    size: req.file.size,
+  });
+}
 
     const newRequest = new Request({
       userId,
       staffName,
-      staffDepartment: user?.department || "-", // pastikan ada fallback
       requestType,
-      details,
-      approver,                 
-      approverName: approverName || "-",       // dari frontend
-      approverDepartment: approverDepartment || "-", // dari frontend
-      file: req.file ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}` : null, // full URL
-      status: "Pending" // optional, default status
+      details: details ? JSON.parse(details) : {},
+      items: items ? JSON.parse(items) : [],
+      approvals: approvals ? JSON.parse(approvals) : [],
+      signatureStaff: signatureStaff || null,
+      attachments, // ✅ SIMPAN SINI
+      finalStatus: "Pending",
     });
 
     await newRequest.save();
 
-    res.status(201).json(newRequest);
-  } catch (error) {
-    console.error("❌ Error createRequest:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
+    // 🔥 Hantar email ke staff / requestor
+    const emailSubject = `Request Anda (${requestType}) Telah Dihantar`;
+    const emailBody = `
+      Salam ${staffName},
+      <br><br>
+      Request anda telah berjaya dihantar dan sedang menunggu approval.
+      <br>
+      Jenis Request: ${requestType}
+      <br>
+      Sila semak portal untuk status terkini.
+      <br><br>
+      Terima kasih.
+    `;
 
-// 🟡 GET semua request
-export const getRequestForPDF = async (req, res) => {
-  try {
-    const request = await Request.findById(req.params.id)
-      .populate("userId", "department name email") // pastikan populate
-      .populate("approver", "name department");
+    if (staff.email) {
+      await sendEmail(staff.email, emailSubject, emailBody);
+    }
 
-    if (!request) return res.status(404).json({ message: "Request not found" });
-
-    res.json(request);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
-// 🔵 UPDATE status
-export const updateRequestStatus = async (req, res) => {
-  try {
-    const { status } = req.body;
-    const updated = await Request.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
-    res.json(updated);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(201).json({ message: "Request berjaya dihantar dan email notifikasi dihantar", request: newRequest });
+  } catch (err) {
+    console.error("❌ createRequest Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
