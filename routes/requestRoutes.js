@@ -1,13 +1,12 @@
 // backend/routes/requestRoutes.js
 import express from "express";
-import upload from "../Middleware/upload.js";
-import authMiddleware from "../Middleware/authMiddleware.js";
-import Request from "../models/Requests.js";
-import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
-import supabase from "../Middleware/supabase.js"; // supabase client
+import multer from "multer";
 import fs from "fs";
 import path from "path";
 
+import authMiddleware from "../Middleware/authMiddleware.js";
+import supabase from "../Middleware/supabase.js"; // supabase client
+import Request from "../models/Requests.js";
 import {
   createRequest,
   getRequests,
@@ -15,11 +14,24 @@ import {
   rejectLevel,
   deleteRequestById,
 } from "../controllers/requestController.js";
+import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
 
 const router = express.Router();
 
+// ================== MULTER ==================
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/"); // simpan sementara sebelum upload ke Supabase
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  },
+});
+const upload = multer({ storage });
+
 // ================== Middleware: Upload ke Supabase ==================
-export const uploadToSupabase = async (req, res, next) => {
+const uploadToSupabase = async (req, res, next) => {
   if (!req.file) return next(); // kalau tiada file, skip
 
   try {
@@ -41,7 +53,6 @@ export const uploadToSupabase = async (req, res, next) => {
       .from("eapproval_uploads")
       .getPublicUrl(originalname);
 
-    // Attach URL ke request supaya controller boleh simpan ke MongoDB
     req.fileUrl = publicUrl;
     console.log(`✅ File uploaded ke Supabase: ${publicUrl}`);
 
@@ -52,22 +63,19 @@ export const uploadToSupabase = async (req, res, next) => {
   }
 };
 
-// ================== CREATE ==================
+// ================== CREATE REQUEST ==================
 router.post(
   "/",
   authMiddleware,
-  uploadToSupabase,        // upload ke Supabase
+  upload.single("file"), // multer dulu parse file
+  uploadToSupabase,      // baru upload ke Supabase
   (req, res, next) => {
     try {
       let payload = req.body;
-      if (req.body.data) {
-        payload = JSON.parse(req.body.data);
-      }
+      if (req.body.data) payload = JSON.parse(req.body.data);
 
-      // Jika file ada, attach URL ke payload
-      if (req.fileUrl) {
-        payload.fileUrl = req.fileUrl;
-      }
+      // attach fileUrl jika ada
+      if (req.fileUrl) payload.fileUrl = req.fileUrl;
 
       req.parsedData = payload;
       next();
@@ -78,17 +86,17 @@ router.post(
   createRequest
 );
 
-// ================== DELETE ==================
+// ================== DELETE REQUEST ==================
 router.delete("/:id", authMiddleware, deleteRequestById);
 
-// ================== GET ALL ==================
+// ================== GET ALL REQUESTS ==================
 router.get("/", authMiddleware, getRequests);
 
 // ================== APPROVAL ==================
 router.put("/approve-level/:id", authMiddleware, approveLevel);
 router.put("/reject-level/:id", authMiddleware, rejectLevel);
 
-// ================== PDF ==================
+// ================== PDF GENERATION ==================
 router.get("/:id/pdf", async (req, res) => {
   try {
     const { id } = req.params;
@@ -100,6 +108,7 @@ router.get("/:id/pdf", async (req, res) => {
       console.warn("⚠ Logo tak jumpa di path:", logoPath);
     }
 
+    // Generate PDF dengan safety check
     const pdfBytes = await generatePDFWithLogo(id);
     const pdfBuffer = Buffer.from(pdfBytes);
 
@@ -117,5 +126,3 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
-
-
