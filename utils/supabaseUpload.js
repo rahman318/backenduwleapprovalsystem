@@ -3,29 +3,55 @@ import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
-)
+);
 
 export const uploadFileToSupabase = async (file) => {
-  if (!file) return null;
+  console.log("🚀 uploadFileToSupabase called");
+  
+  if (!file) {
+    console.warn("⚠️ No file received!");
+    return null;
+  }
+
+  console.log("✅ File info:", {
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size,
+    bufferLength: file.buffer?.length || 0,
+  });
+
   const fileName = `${Date.now()}_${file.originalname}`;
+  console.log("📝 Generated fileName:", fileName);
 
-  // pakai buffer terus
-  const { data, error } = await supabase.storage
-    .from("eapproval_uploads")
-    .upload(fileName, file.buffer, {
-      contentType: file.mimetype,
-      upsert: true,
-    });
+  try {
+    const { data, error } = await supabase.storage
+      .from("eapproval_uploads")
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true,
+      });
 
-  if (error) throw new Error(error.message);
+    if (error) {
+      console.error("❌ Supabase upload error:", error);
+      throw new Error(error.message);
+    }
 
-  const { publicUrl, error: publicError } = supabase
-    .storage.from("eapproval_uploads")
-    .getPublicUrl(fileName);
+    console.log("✅ Supabase upload success, data:", data);
 
-  console.log("🔥 Supabase URL:", publicUrl);  // debug
+    const { publicUrl, error: publicError } = supabase
+      .storage
+      .from("eapproval_uploads")
+      .getPublicUrl(fileName);
 
-  return publicUrl;
+    if (publicError) {
+      console.error("❌ Supabase getPublicUrl error:", publicError);
+      throw new Error(publicError.message);
+    }
+
+    console.log("🔥 Supabase public URL:", publicUrl);
+    return publicUrl;
+  } catch (err) {
+    console.error("❌ Exception in uploadFileToSupabase:", err);
+    return null;
+  }
 };
-
-
