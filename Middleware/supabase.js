@@ -1,24 +1,39 @@
-// backend/middleware/supabase.js
-import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
-import path from "path";
+import { createClient } from '@supabase/supabase-js';
+import JobOrder from './models/JobOrder.js'; // model MongoDB
 
-// Pastikan .env load dulu sebelum createClient
-dotenv.config({ path: path.resolve("./.env") });
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Debug sementara
-console.log("✅ SUPABASE_URL:", process.env.SUPABASE_URL);
-console.log("✅ SUPABASE_SERVICE_KEY:", process.env.SUPABASE_SERVICE_KEY?.slice(0,5) + "...");
+async function uploadFileAndSaveToMongo(jobId, file) {
+  try {
+    // 1️⃣ Upload file ke Supabase
+    const filePath = `uploads/${file.originalname}`; // ikut nama fail
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('uploads')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype
+      });
 
-// Throw error kalau missing
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
-  throw new Error("❌ SUPABASE_URL or SUPABASE_SERVICE_KEY missing!");
+    if (uploadError) throw uploadError;
+
+    // 2️⃣ Ambil public URL selepas upload
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('uploads')
+      .getPublicUrl(uploadData.path);
+
+    const fileUrl = publicUrlData.publicUrl; // <-- URL sebenar
+
+    console.log('File uploaded, URL:', fileUrl);
+
+    // 3️⃣ Simpan URL ke MongoDB
+    await JobOrder.updateOne(
+      { _id: jobId },
+      { $set: { "file.url": fileUrl } }
+    );
+
+    console.log('MongoDB updated with file URL!');
+  } catch (err) {
+    console.error('Error uploading file or saving URL:', err);
+  }
 }
-
-// Buat Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
-export default supabase;
