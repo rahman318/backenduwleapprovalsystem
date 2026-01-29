@@ -59,6 +59,7 @@ if (req.file) {
     filePath: req.file.path,
     mimetype: req.file.mimetype,
     size: req.file.size,
+    fileUrl: req.fileUrl || null, // ✅ ambil dari middleware Supabase
   });
 }
 
@@ -329,3 +330,4 @@ export const downloadPurchasePDF = async (req, res) => {
     res.status(500).json({ message: "Gagal jana PDF" });
   }
 };
+
