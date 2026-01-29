@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import JobOrder from './models/JobOrder.js'; // model MongoDB
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -37,3 +36,4 @@ async function uploadFileAndSaveToMongo(jobId, file) {
     console.error('Error uploading file or saving URL:', err);
   }
 }
+
