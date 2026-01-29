@@ -54,20 +54,22 @@ router.post(
             }))
         : [];
 
-      // 🔹 Upload file to Supabase
-      let fileUrl = null;
-      let attachments = [];
+      // 🔹 Upload file ke Supabase dan simpan URL
+let fileUrl = null;
+let attachments = [];
 
-      if (req.file) {
-        fileUrl = await uploadFileToSupabase(req.file);
+if (req.file) {
+  const uploadedUrl = await uploadFileToSupabase(req.file);
+  console.log("🔥 Supabase URL:", uploadedUrl); // debug bosssskurrr
+  fileUrl = uploadedUrl;
 
-        attachments.push({
-          originalName: req.file.originalname,
-          fileUrl,
-          mimetype: req.file.mimetype,
-          size: req.file.size,
-        });
-      }
+  attachments.push({
+    originalName: req.file.originalname,
+    fileUrl,         // <--- penting, Supabase public URL
+    mimetype: req.file.mimetype,
+    size: req.file.size,
+  });
+}
 
       // 🔹 Create new request
       const newRequest = new Request({
@@ -201,3 +203,4 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
