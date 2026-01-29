@@ -4,12 +4,20 @@ import sendEmail from "../utils/sendEmail.js"; // helper untuk Nodemailer
 
 export const createRequest = async (req, res) => {
   try {
-    
-    // 🔍 DEBUG FILE – LETAK SINI
-    console.log("FILE:", req.file);
+    // 🔍 DEBUG FILE – tengok req.file & req.fileUrl
+    console.log("REQ FILE:", req.file);       // multer info
+    console.log("REQ FILE URL:", req.fileUrl); // public URL dari Supabase
     console.log("BODY:", req.body);
 
-const { userId, staffName, requestType, details, approvals, signatureStaff } = req.body;
+    const {
+      userId,
+      staffName,
+      requestType,
+      details,
+      items,
+      approvals,
+      signatureStaff,
+    } = req.body;
 
     if (!userId || !staffName || !requestType) {
       return res.status(400).json({ message: "Field wajib tidak lengkap" });
@@ -35,7 +43,7 @@ const { userId, staffName, requestType, details, approvals, signatureStaff } = r
 
       if (Array.isArray(parsedApprovals)) {
         approvalsData = parsedApprovals
-          .filter(a => a.approverId) // ❌ buang yang null/undefined
+          .filter(a => a.approverId)
           .map((a, index) => ({
             level: a.level || index + 1,
             approverId: a.approverId,
@@ -49,34 +57,38 @@ const { userId, staffName, requestType, details, approvals, signatureStaff } = r
       }
     }
 
-// 🔥 FILE DATA – INI TEMPAT YANG BETUL
-const attachments = [];
+    // 🔥 FILE DATA – GUNA req.fileUrl dari Supabase
+    const attachments = [];
 
-if (req.file) {
-  attachments.push({
-    originalName: req.file.originalname,
-    fileName: req.file.filename,
-    filePath: req.file.path,
-    mimetype: req.file.mimetype,
-    size: req.file.size,
-  });
-}
+    if (req.fileUrl) {
+      attachments.push({
+        originalName: req.file.originalname, // nama asal
+        fileUrl: req.fileUrl,               // public URL Supabase
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      });
+    }
 
+    // =========================
+    // ✅ Simpan request ke MongoDB
+    // =========================
     const newRequest = new Request({
       userId,
       staffName,
       requestType,
       details: details ? JSON.parse(details) : {},
       items: items ? JSON.parse(items) : [],
-      approvals: approvals ? JSON.parse(approvals) : [],
+      approvals: approvalsData,      // gunakan approvalsData
       signatureStaff: signatureStaff || null,
-      attachments, // ✅ SIMPAN SINI
+      attachments,                   // fileUrl Supabase
       finalStatus: "Pending",
     });
 
     await newRequest.save();
 
-    // 🔥 Hantar email ke staff / requestor
+    // =========================
+    // 🔥 Hantar email ke staff
+    // =========================
     const emailSubject = `Request Anda (${requestType}) Telah Dihantar`;
     const emailBody = `
       Salam ${staffName},
@@ -94,7 +106,11 @@ if (req.file) {
       await sendEmail(staff.email, emailSubject, emailBody);
     }
 
-    res.status(201).json({ message: "Request berjaya dihantar dan email notifikasi dihantar", request: newRequest });
+    res.status(201).json({
+      message:
+        "Request berjaya dihantar dan email notifikasi dihantar",
+      request: newRequest,
+    });
   } catch (err) {
     console.error("❌ createRequest Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
