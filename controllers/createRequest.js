@@ -74,16 +74,29 @@ if (req.file) {
     // ✅ Simpan request ke MongoDB
     // =========================
     const newRequest = new Request({
-      userId,
-      staffName,
-      requestType,
-      details: details ? JSON.parse(details) : {},
-      items: items ? JSON.parse(items) : [],
-      approvals: approvalsData,      // gunakan approvalsData
-      signatureStaff: signatureStaff || null,
-      attachments,                   // fileUrl Supabase
-      finalStatus: "Pending",
-    });
+  userId,
+  staffName,
+  staffDepartment: staffDepartment || "-",
+  requestType,
+  details: parsedDetails,
+  items: parsedItems,
+  approvals: approvalsData,
+  signatureStaff: signatureStaff || null,
+
+  // ✅ GUNA URL SUPABASE
+  file: req.fileUrl || null,
+
+  attachments: req.fileUrl
+    ? [{
+        originalName: req.file?.originalname,
+        fileUrl: req.fileUrl,
+        mimetype: req.file?.mimetype,
+        size: req.file?.size,
+      }]
+    : [],
+
+  finalStatus: "Pending",
+});
 
     await newRequest.save();
 
@@ -117,5 +130,6 @@ if (req.file) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 
