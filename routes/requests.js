@@ -59,33 +59,29 @@ let fileUrl = null;
 let attachments = [];
 
 if (req.file) {
-  const uploadedUrl = await uploadFileToSupabase(req.file);
-  console.log("🔥 Supabase URL:", uploadedUrl); // debug bosssskurrr
-  fileUrl = uploadedUrl;
-
+  fileUrl = await uploadFileToSupabase(req.file);
   attachments.push({
     originalName: req.file.originalname,
-    fileUrl,         // <--- penting, Supabase public URL
+    fileUrl,
     mimetype: req.file.mimetype,
     size: req.file.size,
   });
 }
 
-      // 🔹 Create new request
-      const newRequest = new Request({
-        userId,
-        staffName,
-        staffDepartment: staffDepartment || "-",
-        requestType,
-        details: parsedDetails,
-        items: parsedItems,
-        approvals: approvalsData,
-        signatureStaff: signatureStaff || null,
-        file: fileUrl,
-        attachments,
-        finalStatus: "Pending",
-      });
-
+const newRequest = new Request({
+  userId,
+  staffName,
+  staffDepartment: staffDepartment || "-",
+  requestType,
+  details: parsedDetails,
+  items: parsedItems,
+  approvals: approvalsData,
+  signatureStaff: signatureStaff || null,
+  file: fileUrl,
+  attachments,
+  finalStatus: "Pending",
+});
+      
       const savedRequest = await newRequest.save();
       res.status(201).json({ success: true, data: savedRequest });
     } catch (err) {
@@ -203,4 +199,5 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
 
