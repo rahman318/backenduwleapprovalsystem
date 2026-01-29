@@ -67,9 +67,6 @@ router.post(
 
     console.log("FILE UPLOAD:", req.files); // debug bossskurrr
 
-    // 🔹 Legacy file (untuk front-end lama jika hanya satu file)
-    let legacyFile = req.files && req.files.length > 0 ? `/uploads/${req.files[0].filename}` : null;
-
     const newRequest = new Request({
       userId,
       staffName,
@@ -203,3 +200,4 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
