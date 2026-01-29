@@ -8,7 +8,7 @@ export const uploadFileToSupabase = async (file) => {
   const fileName = `${Date.now()}_${file.originalname}`;
 
   const { data, error } = await supabase.storage
-    .from("e-approval-files") // nama bucket
+    .from("eapproval_uploads") // nama bucket
     .upload(fileName, fileBuffer, {
       contentType: file.mimetype,
       upsert: true,
@@ -23,4 +23,5 @@ export const uploadFileToSupabase = async (file) => {
   if (publicError) throw new Error(publicError.message);
 
   return publicUrl;
+
 };
