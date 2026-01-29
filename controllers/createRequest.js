@@ -58,16 +58,15 @@ export const createRequest = async (req, res) => {
     }
 
     // 🔥 FILE DATA – GUNA req.fileUrl dari Supabase
-    const attachments = [];
-
-    if (req.file) {
+    let attachments = [];
+if (req.file) {
   attachments.push({
     originalName: req.file.originalname,
     fileName: req.file.filename,
-    filePath: req.file.path,
+    filePath: `/uploads/${req.file.filename}`,
+    url: req.fileUrl || null, // <-- dari Supabase
     mimetype: req.file.mimetype,
     size: req.file.size,
-    fileUrl: req.fileUrl || null,  // ✅ attach Supabase URL kalau ada
   });
 }
 
@@ -118,4 +117,5 @@ export const createRequest = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
