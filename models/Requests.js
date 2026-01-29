@@ -50,14 +50,15 @@ const requestSchema = new mongoose.Schema(
     signatureStaff: { type: String, default: null },
 
     attachments: [
-      {
-        originalName: { type: String, default: null },
-        fileName: { type: String, default: null },
-        filePath: { type: String, default: null },
-        mimetype: { type: String, default: null },
-        size: { type: Number, default: 0 },
-      }
-    ],
+  {
+    originalName: { type: String, default: null },
+    fileName: { type: String, default: null },
+    fileUrl: { type: String, default: null }, // <-- penting supabase URL
+    mimetype: { type: String, default: null },
+    size: { type: Number, default: 0 },
+  }
+],
+
 
     finalStatus: { type: String, enum: ["Pending", "Approved", "Rejected"], default: "Pending" },
 
@@ -67,3 +68,4 @@ const requestSchema = new mongoose.Schema(
 );
 
 export default mongoose.model("Request", requestSchema);
+
