@@ -50,16 +50,16 @@ export const createRequest = async (req, res) => {
     // ============================================================
 
     // ================== FIX ATTACHMENTS ==================
-const attachments = [];
-
+// 🔥 FILE DATA – GUNA req.fileUrl dari Supabase
+    let attachments = [];
 if (req.file) {
   attachments.push({
     originalName: req.file.originalname,
     fileName: req.file.filename,
-    filePath: req.file.path,
+    filePath: `/uploads/${req.file.filename}`,
+    url: req.fileUrl || null, // <-- dari Supabase
     mimetype: req.file.mimetype,
     size: req.file.size,
-    fileUrl: req.fileUrl || null, // ✅ ambil dari middleware Supabase
   });
 }
 
@@ -330,4 +330,5 @@ export const downloadPurchasePDF = async (req, res) => {
     res.status(500).json({ message: "Gagal jana PDF" });
   }
 };
+
 
