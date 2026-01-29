@@ -82,10 +82,7 @@ if (req.file) {
   items: parsedItems,
   approvals: approvalsData,
   signatureStaff: signatureStaff || null,
-
-  // ✅ GUNA URL SUPABASE
   file: req.fileUrl || null,
-
   attachments: req.fileUrl
     ? [{
         originalName: req.file?.originalname,
@@ -94,7 +91,6 @@ if (req.file) {
         size: req.file?.size,
       }]
     : [],
-
   finalStatus: "Pending",
 });
 
@@ -130,6 +126,7 @@ if (req.file) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 
 
