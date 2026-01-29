@@ -68,18 +68,29 @@ router.post(
     console.log("FILE UPLOAD:", req.files); // debug bossskurrr
 
     const newRequest = new Request({
-      userId,
-      staffName,
-      staffDepartment: staffDepartment || "-",
-      requestType,
-      details: details ? JSON.parse(details) : {},
-      items: items ? JSON.parse(items) : [],
-      approvals: approvals ? JSON.parse(approvals) : [],
-      signatureStaff: signatureStaff || null,
-      file: legacyFile,       // legacy string path
-      attachments: attachments.length > 0 ? attachments : null, // object array
-      finalStatus: "Pending",
-    });
+  userId,
+  staffName,
+  staffDepartment: staffDepartment || "-",
+  requestType,
+  details: parsedDetails,
+  items: parsedItems,
+  approvals: approvalsData,
+  signatureStaff: signatureStaff || null,
+
+  // ✅ GUNA URL SUPABASE
+  file: req.fileUrl || null,
+
+  attachments: req.fileUrl
+    ? [{
+        originalName: req.file?.originalname,
+        fileUrl: req.fileUrl,
+        mimetype: req.file?.mimetype,
+        size: req.file?.size,
+      }]
+    : [],
+
+  finalStatus: "Pending",
+});
 
     const savedRequest = await newRequest.save();
 
@@ -200,4 +211,5 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
 
