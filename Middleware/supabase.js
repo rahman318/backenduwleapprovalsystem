@@ -1,41 +1,62 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+dotenv.config({ path: path.resolve("./.env") });
 
-async function uploadFileAndSaveToMongo(jobId, file) {
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+  throw new Error("❌ SUPABASE credentials missing in .env");
+}
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+// ✅ MIDDLEWARE UNTUK UPLOAD + DAPATKAN PUBLIC URL
+export const uploadToSupabase = async (req, res, next) => {
+  if (!req.file) return next(); // kalau takde file, skip
+
   try {
-    // 1️⃣ Upload file ke Supabase
-    const filePath = `uploads/${file.originalname}`; // ikut nama fail
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('uploads')
-      .upload(filePath, file.buffer, {
-        contentType: file.mimetype
+    const { path: tempPath, originalname, mimetype } = req.file;
+    const fileData = fs.readFileSync(tempPath);
+
+    // Guna nama unik supaya tak overwrite
+    const fileName = `${Date.now()}-${originalname}`;
+
+    // 1️⃣ Upload ke Supabase Storage
+    const { data, error } = await supabase.storage
+      .from("eapproval_uploads")
+      .upload(fileName, fileData, {
+        contentType: mimetype,
+        upsert: false,
       });
 
-    if (uploadError) throw uploadError;
+    if (error) throw error;
 
-    // 2️⃣ Ambil public URL selepas upload
-    const { data: publicUrlData } = supabase
-      .storage
-      .from('uploads')
-      .getPublicUrl(uploadData.path);
+    // 2️⃣ Padam file sementara dari server
+    fs.unlinkSync(tempPath);
 
-    const fileUrl = publicUrlData.publicUrl; // <-- URL sebenar
+    // 3️⃣ Dapatkan PUBLIC URL
+    const { data: publicUrlData } = supabase.storage
+      .from("eapproval_uploads")
+      .getPublicUrl(fileName);
 
-    console.log('File uploaded, URL:', fileUrl);
+    if (!publicUrlData?.publicUrl) {
+      throw new Error("Failed to generate public URL");
+    }
 
-    // 3️⃣ Simpan URL ke MongoDB
-    await JobOrder.updateOne(
-      { _id: jobId },
-      { $set: { "file.url": fileUrl } }
-    );
+    // 4️⃣ Simpan URL dalam request untuk controller guna
+    req.fileUrl = publicUrlData.publicUrl;
 
-    console.log('MongoDB updated with file URL!');
+    console.log("✅ Supabase Upload Success:", req.fileUrl);
+
+    next();
   } catch (err) {
-    console.error('Error uploading file or saving URL:', err);
+    console.error("❌ Supabase Upload Error:", err.message);
+    return res.status(500).json({ message: "File upload failed" });
   }
-}
+};
 
 export default supabase;
