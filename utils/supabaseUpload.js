@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+)
 
 export const uploadFileToSupabase = async (file) => {
   if (!file) return null;
@@ -25,3 +28,4 @@ export const uploadFileToSupabase = async (file) => {
 
   return publicUrl;
 };
+
