@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from "dotenv";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -37,3 +38,4 @@ async function uploadFileAndSaveToMongo(jobId, file) {
   }
 }
 
+export default supabase;
