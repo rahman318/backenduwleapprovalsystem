@@ -56,7 +56,6 @@ export const uploadToSupabase = async (req, res, next) => {
 router.post(
   "/",
   authMiddleware,
-  upload.single("file"),   // multer temp upload
   uploadToSupabase,        // upload ke Supabase
   (req, res, next) => {
     try {
@@ -118,4 +117,5 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
 
