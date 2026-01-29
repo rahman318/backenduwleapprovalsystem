@@ -1,10 +1,10 @@
 // backend/routes/requestRoutes.js
 import express from "express";
-import upload from "../middleware/upload.js";
-import authMiddleware from "../middleware/authMiddleware.js";
+import upload from "../Middleware/upload.js";
+import authMiddleware from "../Middleware/authMiddleware.js";
 import Request from "../models/Requests.js";
 import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
-import supabase from "../middleware/supabase.js"; // supabase client
+import supabase from "../Middleware/supabase.js"; // supabase client
 import fs from "fs";
 import path from "path";
 
@@ -118,3 +118,4 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
