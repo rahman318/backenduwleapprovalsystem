@@ -1,27 +1,24 @@
 import multer from "multer";
-import path from "path";
 import fs from "fs";
+import path from "path";
+import supabase from "./supabase.js"; // supabase client kita
 
-// Pastikan folder uploads wujud
-const uploadDir = "uploads/";
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+// ⚡ Multer tetap guna temp folder sementara sebelum upload
+const tempDir = "temp_uploads/";
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
-// Setup storage
+// Multer storage (simpan sementara)
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir); // folder simpan file
-  },
+  destination: (req, file, cb) => cb(null, tempDir),
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const finalName = uniqueSuffix + path.extname(file.originalname);
-    console.log(`✅ File disimpan sebagai: ${finalName}`);
+    console.log(`✅ Temp file disimpan sebagai: ${finalName}`);
     cb(null, finalName);
   },
 });
 
-// Filter file
+// Filter file sama macam korang
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = [
     "application/pdf",
@@ -43,12 +40,45 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Instance multer
+// Multer instance
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // max 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
 });
 
-// ✅ Export default
+// 🔹 Middleware function untuk upload ke Supabase
+export const uploadToSupabase = async (req, res, next) => {
+  if (!req.file) return res.status(400).send("No file uploaded");
+
+  try {
+    const { path: tempPath, originalname } = req.file;
+    const fileData = fs.readFileSync(tempPath);
+
+    // Upload ke Supabase Storage
+    const { data, error } = await supabase.storage
+      .from("eapproval_uploads") // bucket name
+      .upload(originalname, fileData, { upsert: true });
+
+    if (error) throw error;
+
+    // Hapus temp file
+    fs.unlinkSync(tempPath);
+
+    // Generate public URL
+    const { publicUrl } = supabase.storage
+      .from("eapproval_uploads")
+      .getPublicUrl(originalname);
+
+    // Masukkan URL dalam req supaya controller boleh simpan ke MongoDB/email
+    req.fileUrl = publicUrl;
+
+    console.log(`✅ File uploaded ke Supabase: ${publicUrl}`);
+    next();
+  } catch (err) {
+    console.error("❌ Supabase upload failed:", err.message);
+    res.status(500).send("Upload failed");
+  }
+};
+
 export default upload;
