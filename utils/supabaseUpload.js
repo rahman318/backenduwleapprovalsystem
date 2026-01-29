@@ -1,28 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
-import fs from "fs";
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export const uploadFileToSupabase = async (file) => {
-  const fileBuffer = fs.readFileSync(file.path);
+  if (!file) return null;
   const fileName = `${Date.now()}_${file.originalname}`;
 
+  // pakai buffer terus
   const { data, error } = await supabase.storage
-    .from("eapproval_uploads") // nama bucket
-    .upload(fileName, fileBuffer, {
+    .from("eapproval_uploads")
+    .upload(fileName, file.buffer, {
       contentType: file.mimetype,
       upsert: true,
     });
 
   if (error) throw new Error(error.message);
 
-  const { publicUrl, error: publicError } = supabase
-    .storage.from("eapproval_uploads")
+  const { publicUrl } = supabase
+    .storage
+    .from("eapproval_uploads")
     .getPublicUrl(fileName);
 
-  if (publicError) throw new Error(publicError.message);
+  console.log("🔥 Supabase URL:", publicUrl);  // debug
 
   return publicUrl;
-
 };
-
