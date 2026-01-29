@@ -33,8 +33,8 @@ app.use(express.json({ limit: "10mb" })); // untuk parse JSON besar
 app.use(express.urlencoded({ extended: true })); // untuk form data
 
 // ✅ Serve static folder (uploads, images, etc.)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/generated_pdfs", express.static(path.join(__dirname, "generated_pdfs")));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/generated_pdfs", express.static(path.join(process.cwd(), "generated_pdfs")));
 
 // ==========================
 // 🚀 ROUTES
@@ -66,5 +66,6 @@ connectDB();
 // ==========================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
 
 
