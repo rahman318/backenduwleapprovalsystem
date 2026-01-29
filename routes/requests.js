@@ -6,6 +6,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { generatePDFWithLogo } from "../utils/generateGenericPDF.js";
+import { uploadFileToSupabase } from "../utils/supabaseUpload.js"; // 🔥 new helper
 
 const router = express.Router();
 
@@ -29,77 +30,68 @@ router.post(
   verifyToken,
   upload.single("file"),
   async (req, res) => {
-  try {
-    const { userId, staffName, requestType, details, approvals, items, signatureStaff } = req.body;
+    try {
+      const { userId, staffName, staffDepartment, requestType, details, approvals, items, signatureStaff } = req.body;
 
-    // 🔹 Parse JSON fields
-    const parsedDetails = details ? JSON.parse(details) : {};
-    const parsedItems = items ? JSON.parse(items) : [];
-    const parsedApprovals = approvals ? JSON.parse(approvals) : [];
+      // 🔹 Parse JSON fields
+      const parsedDetails = details ? JSON.parse(details) : {};
+      const parsedItems = items ? JSON.parse(items) : [];
+      const parsedApprovals = approvals ? JSON.parse(approvals) : [];
 
-    // 🔹 Handle approvals: hanya yang ada approverId
-    const approvalsData = Array.isArray(parsedApprovals)
-      ? parsedApprovals
-          .filter(a => a.approverId)
-          .map((a, idx) => ({
-            level: a.level || idx + 1,
-            approverId: a.approverId,
-            approverName: a.approverName || "-",
-            approverDepartment: a.approverDepartment || "-",
-            status: "Pending",
-            remark: "",
-            signature: null,
-            actionDate: null,
-          }))
-      : [];
+      // 🔹 Handle approvals: hanya yang ada approverId
+      const approvalsData = Array.isArray(parsedApprovals)
+        ? parsedApprovals
+            .filter(a => a.approverId)
+            .map((a, idx) => ({
+              level: a.level || idx + 1,
+              approverId: a.approverId,
+              approverName: a.approverName || "-",
+              approverDepartment: a.approverDepartment || "-",
+              status: "Pending",
+              remark: "",
+              signature: null,
+              actionDate: null,
+            }))
+        : [];
 
-    // 🔹 Simpan attachments info (support multiple files)
-    let attachments = [];
-    if (req.files && req.files.length > 0) {
-      attachments = req.files.map(f => ({
-        originalName: f.originalname,
-        fileName: f.filename,
-        filePath: `/uploads/${f.filename}`,
-        mimetype: f.mimetype,
-        size: f.size,
-      }));
+      // 🔹 Upload file to Supabase
+      let fileUrl = null;
+      let attachments = [];
+
+      if (req.file) {
+        fileUrl = await uploadFileToSupabase(req.file);
+
+        attachments.push({
+          originalName: req.file.originalname,
+          fileUrl,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+        });
+      }
+
+      // 🔹 Create new request
+      const newRequest = new Request({
+        userId,
+        staffName,
+        staffDepartment: staffDepartment || "-",
+        requestType,
+        details: parsedDetails,
+        items: parsedItems,
+        approvals: approvalsData,
+        signatureStaff: signatureStaff || null,
+        file: fileUrl,
+        attachments,
+        finalStatus: "Pending",
+      });
+
+      const savedRequest = await newRequest.save();
+      res.status(201).json({ success: true, data: savedRequest });
+    } catch (err) {
+      console.error("CREATE REQUEST ERROR:", err);
+      res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
-
-    console.log("FILE UPLOAD:", req.files); // debug bossskurrr
-
-    const newRequest = new Request({
-  userId,
-  staffName,
-  staffDepartment: staffDepartment || "-",
-  requestType,
-  details: parsedDetails,
-  items: parsedItems,
-  approvals: approvalsData,
-  signatureStaff: signatureStaff || null,
-
-  // ✅ GUNA URL SUPABASE
-  file: req.fileUrl || null,
-
-  attachments: req.fileUrl
-    ? [{
-        originalName: req.file?.originalname,
-        fileUrl: req.fileUrl,
-        mimetype: req.file?.mimetype,
-        size: req.file?.size,
-      }]
-    : [],
-
-  finalStatus: "Pending",
-});
-
-    const savedRequest = await newRequest.save();
-
-    res.status(201).json({ success: true, data: savedRequest });
-  } catch (err) {
-    console.error("CREATE REQUEST ERROR:", err);
-    res.status(500).json({ success: false, message: "Server Error", error: err.message });
   }
-});
+);
 
 // ================== GET ALL REQUESTS ==================
 router.get("/", verifyToken, async (req, res) => {
@@ -107,8 +99,7 @@ router.get("/", verifyToken, async (req, res) => {
     const requests = await Request.find().sort({ createdAt: -1 });
     res.json(requests.map(r => ({
       ...r._doc,
-      fileUrl: r.fileUrl || null,
-      fileName: r.fileName || null,
+      fileUrl: r.file || null,
     })));
   } catch (err) {
     console.error(err);
@@ -130,8 +121,7 @@ router.get("/approver/:approverId", verifyToken, async (req, res) => {
     const requests = await Request.find(filter).sort({ createdAt: -1 });
     res.json(requests.map(r => ({
       ...r._doc,
-      fileUrl: r.fileUrl || null,
-      fileName: r.fileName || null,
+      fileUrl: r.file || null,
     })));
   } catch (err) {
     console.error(err);
@@ -211,5 +201,3 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
-
-
