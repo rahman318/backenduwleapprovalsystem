@@ -32,33 +32,43 @@ const upload = multer({ storage });
 
 // ================== Middleware: Upload ke Supabase ==================
 const uploadToSupabase = async (req, res, next) => {
-  if (!req.file) return next(); // kalau tiada file, skip
+  if (!req.file) return next();
 
   try {
-    const { path: tempPath, originalname } = req.file;
-    const fileData = fs.readFileSync(tempPath);
+    const tempPath = req.file.path; // path file dari multer diskStorage
+    const originalname = req.file.originalname;
 
-    // Upload ke Supabase
+    const fileBuffer = fs.readFileSync(tempPath);
+
+    // ✅ Buat nama file unik
+    const filePath = `requests/${Date.now()}-${originalname}`;
+
+    // ✅ Upload ke Supabase
     const uploadRes = await supabase.storage
-  .from("attachments")
-  .upload(filePath, file.buffer, {
-    contentType: file.mimetype,
-  });
+      .from("attachments") // pastikan bucket ni wujud
+      .upload(filePath, fileBuffer, {
+        contentType: req.file.mimetype,
+      });
 
-console.log("📦 UPLOAD RESPONSE SUPABASE:", uploadRes);
+    console.log("📦 UPLOAD RESPONSE SUPABASE:", uploadRes);
 
-    if (error) throw error;
+    if (uploadRes.error) {
+      throw uploadRes.error;
+    }
 
-    // Delete temp file
+    // ✅ Delete file temp dari server
     fs.unlinkSync(tempPath);
 
-    // Generate public URL
-    const { publicUrl } = supabase.storage
-      .from("eapproval_uploads")
-      .getPublicUrl(originalname);
+    // ✅ Dapatkan public URL
+    const { data } = supabase.storage
+      .from("attachments")
+      .getPublicUrl(filePath);
+
+    const publicUrl = data.publicUrl;
 
     req.fileUrl = publicUrl;
-    console.log(`✅ File uploaded ke Supabase: ${publicUrl}`);
+
+    console.log("✅ File uploaded ke Supabase:", publicUrl);
 
     next();
   } catch (err) {
@@ -130,4 +140,5 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
 
