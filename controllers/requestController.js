@@ -52,12 +52,11 @@ export const createRequest = async (req, res) => {
     // ================== FIX ATTACHMENTS ==================
 // 🔥 FILE DATA – GUNA req.fileUrl dari Supabase
     let attachments = [];
-if (req.file) {
+if (req.file && req.fileUrl) {
   attachments.push({
     originalName: req.file.originalname,
     fileName: req.file.filename,
-    filePath: `/uploads/${req.file.filename}`,
-    url: req.fileUrl || null, // <-- dari Supabase
+    fileUrl: req.fileUrl,   // ✅ public URL Supabase
     mimetype: req.file.mimetype,
     size: req.file.size,
   });
@@ -330,5 +329,6 @@ export const downloadPurchasePDF = async (req, res) => {
     res.status(500).json({ message: "Gagal jana PDF" });
   }
 };
+
 
 
