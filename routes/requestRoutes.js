@@ -45,7 +45,7 @@ const uploadToSupabase = async (req, res, next) => {
 
     // ✅ Upload ke Supabase
     const uploadRes = await supabase.storage
-      .from("attachments") // pastikan bucket ni wujud
+      .from("eapproval_uploads") // pastikan bucket ni wujud
       .upload(filePath, fileBuffer, {
         contentType: req.file.mimetype,
       });
@@ -140,5 +140,6 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
 
 
