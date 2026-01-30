@@ -59,11 +59,11 @@ export const createRequest = async (req, res) => {
 
     // 🔥 FILE DATA – GUNA req.fileUrl dari Supabase
     let attachments = [];
-if (req.file) {
+if (req.file && req.fileUrl) {
   attachments.push({
     originalName: req.file.originalname,
     fileName: req.file.filename,
-    url: req.fileUrl || null, // <-- dari Supabase
+    fileUrl: req.fileUrl,   // ✅ public URL Supabase
     mimetype: req.file.mimetype,
     size: req.file.size,
   });
@@ -125,6 +125,7 @@ if (req.file) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 
 
