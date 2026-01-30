@@ -61,7 +61,7 @@ const uploadToSupabase = async (req, res, next) => {
 
     // ✅ Dapatkan public URL
     const { data } = supabase.storage
-      .from("attachments")
+      .from("eapproval_uploads")
       .getPublicUrl(filePath);
 
     const publicUrl = data.publicUrl;
@@ -140,6 +140,7 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
 
 
 
