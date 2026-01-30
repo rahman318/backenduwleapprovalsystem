@@ -63,7 +63,6 @@ if (req.file) {
   attachments.push({
     originalName: req.file.originalname,
     fileName: req.file.filename,
-    filePath: `/uploads/${req.file.filename}`,
     url: req.fileUrl || null, // <-- dari Supabase
     mimetype: req.file.mimetype,
     size: req.file.size,
@@ -126,6 +125,7 @@ if (req.file) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 
 
