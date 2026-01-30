@@ -39,9 +39,13 @@ const uploadToSupabase = async (req, res, next) => {
     const fileData = fs.readFileSync(tempPath);
 
     // Upload ke Supabase
-    const { data, error } = await supabase.storage
-      .from("eapproval_uploads")
-      .upload(originalname, fileData, { upsert: true });
+    const uploadRes = await supabase.storage
+  .from("attachments")
+  .upload(filePath, file.buffer, {
+    contentType: file.mimetype,
+  });
+
+console.log("📦 UPLOAD RESPONSE SUPABASE:", uploadRes);
 
     if (error) throw error;
 
@@ -126,3 +130,4 @@ router.get("/:id/pdf", async (req, res) => {
 });
 
 export default router;
+
