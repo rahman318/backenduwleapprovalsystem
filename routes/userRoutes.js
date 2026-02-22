@@ -4,9 +4,10 @@ import {
   getUsers,
   getStaff,
   getApprovers,
+  getTechnicians,
   deleteUser, // 🟢 Tambah import deleteUser
 } from "../controllers/userController.js";
-import authMiddleware from "../Middleware/authMiddleware.js"; // ✅ pastikan file ni wujud
+import authMiddleware from "../middleware/authMiddleware.js"; // ✅ pastikan file ni wujud
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ router.post("/register", registerUser);
 router.get("/", getUsers);
 router.get("/staff", getStaff);
 router.get("/approvers", getApprovers);
+router.get("/technicians", getTechnicians);
 
 // 🧩 Maklumat user semasa (guna token)
 router.get("/me", authMiddleware, async (req, res) => {
@@ -44,6 +46,5 @@ router.delete("/:id", authMiddleware, async (req, res, next) => {
     res.status(500).json({ message: "Ralat semasa padam user" });
   }
 });
-
 
 export default router;
