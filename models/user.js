@@ -8,14 +8,29 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: {
       type: String,
-      enum: ["staff", "approver", "admin"],
+      enum: ["staff", "approver", "admin", "technician"],
       required: true,
     },
     department: { type: String },
     level: { 
-  type: Number, 
-  required: function() { return this.role === "approver"; } 
-},
+      type: Number, 
+      required: function() { 
+        // level wajib hanya untuk approver
+        return this.role === "approver"; 
+      } 
+    },
+    phone: { 
+      type: String, 
+      required: false, // ✅ now optional for all roles
+      unique: true,
+      validate: {
+        validator: function(v) {
+          // jika kosong, okay; kalau ada, kena format +60123456789
+          return !v || /^\+\d{9,15}$/.test(v);
+        },
+        message: props => `${props.value} bukan nombor telefon yang sah! Gunakan format +60123456789`
+      }
+    },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
   },

@@ -1,4 +1,3 @@
-// models/Request.js
 import mongoose from "mongoose";
 
 // ================= Approval Schema =================
@@ -17,7 +16,7 @@ const approvalSchema = new mongoose.Schema({
   actionDate: { type: Date, default: null },
 });
 
-// ================= Items Schema FIXED =================
+// ================= Items Schema =================
 const itemSchema = new mongoose.Schema({
   itemName: { type: String, required: true },
   quantity: { type: Number, default: 0 },
@@ -26,7 +25,7 @@ const itemSchema = new mongoose.Schema({
   reason: { type: String, default: "" },
 });
 
-// ================= Request Schema FIXED + serialNumber =================
+// ================= Request Schema =================
 const requestSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -50,22 +49,47 @@ const requestSchema = new mongoose.Schema(
     signatureStaff: { type: String, default: null },
 
     attachments: [
-  {
-    originalName: { type: String, default: null },
-    fileName: { type: String, default: null },
-    fileUrl: { type: String, default: null }, // <-- penting supabase URL
-    mimetype: { type: String, default: null },
-    size: { type: Number, default: 0 },
-  }
-],
+      {
+        originalName: { type: String, default: null },
+        fileName: { type: String, default: null },
+        filePath: { type: String, default: null },
+        mimetype: { type: String, default: null },
+        size: { type: Number, default: 0 },
+      },
+    ],
 
-
-    finalStatus: { type: String, enum: ["Pending", "Approved", "Rejected"], default: "Pending" },
-
-    serialNumber: { type: String, unique: true, required: true }, // <-- bossskurrr tambah nie
+        // ================= Maintenance Flow =================
+    assignedTechnician: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    assignedAt: { 
+      type: Date, 
+      default: null 
+    }, // <--- BARU (untuk kira SLA)
+    slaHours: { 
+      type: Number, 
+      default: 24 
+    }, // <--- BARU (SLA default 24 jam)
+    maintenanceStatus: {
+      type: String,
+      enum: ["Submitted", "In Progress", "Completed"],
+      default: "Submitted",
+    },
+    startedAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    timeToComplete: { type: Number, default: null }, // dalam minit
+    finalStatus: { 
+      type: String, 
+      enum: ["Pending", "Approved", "Rejected"], 
+      default: "Pending" 
+    },
+    serialNumber: { type: String, unique: true, required: true },
   },
-  { timestamps: true }
+  {
+    timestamps: true, // ✅ betul, diletak sebagai option kedua
+  }
 );
 
 export default mongoose.model("Request", requestSchema);
-
