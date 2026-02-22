@@ -1,6 +1,4 @@
-import axios from "axios";
-
-export const sendEmail = async (toEmail, subject, htmlContent) => {
+const sendEmail = async (toEmail, subject, htmlContent) => {
   try {
     await axios.post(
       "https://api.brevo.com/v3/smtp/email",
@@ -24,3 +22,5 @@ export const sendEmail = async (toEmail, subject, htmlContent) => {
     console.error("Email send error:", error.response?.data || error.message);
   }
 };
+
+export default sendEmail;
