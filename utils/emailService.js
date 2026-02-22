@@ -1,55 +1,34 @@
-import axios from "axios";
-import dotenv from "dotenv";
-dotenv.config();
+import nodemailer from "nodemailer";
 
-/**
- * sendEmail
- * @param {string} to
- * @param {string} subject
- * @param {string} html
- * @param {Buffer|null} pdfBuffer
- * @param {string|null} pdfName
- */
-const sendEmail = async ({ to, subject, html, pdfBuffer = null, pdfName = null }) => {
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: 465,
+  secure: true,
+  auth: {
+    user: "admin@underwaterworldlangkawi.com",
+    pass: "Uwl<9330>",
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+});
+
+// 🔵 NOW SUPPORT ATTACHMENTS
+const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
-    const payload = {
-      sender: { 
-        name: "e-Approval System", 
-        email: "admin@underwaterworldlangkawi.com" 
-      },
-      to: [{ email: to }],
+    await transporter.sendMail({
+      from: `"e-Approval System" <admin@underwaterworldlangkawi.com>`,
+      to,
       subject,
-      htmlContent: html
-    };
+      html,
+      attachments, // <-- SUPPORT ATTACHMENT DI SINI
+    });
 
-    // Kalau ada PDF buffer
-    if (pdfBuffer && pdfName) {
-      payload.attachment = [
-        {
-          name: pdfName,
-          content: Buffer.isBuffer(pdfBuffer) ? pdfBuffer.toString("base64") : Buffer.from(pdfBuffer).toString("base64"),
-          type: "application/pdf"
-        }
-      ];
-    }
-
-    const response = await axios.post(
-      "https://api.brevo.com/v3/smtp/email",
-      payload,
-      {
-        headers: {
-          "api-key": process.env.BREVO_API_KEY,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    console.log("✅ Email sent:", to);
-    return response.data;
-
-  } catch (err) {
-    console.error("❌ Ralat Brevo:", err.response?.data || err.message);
-    throw err;
+    console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
+  } catch (error) {
+    console.error("❌ Ralat hantar emel:", error);
   }
 };
 
