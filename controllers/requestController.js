@@ -1,6 +1,6 @@
 // controllers/requestController.js
 import Request from "../models/Requests.js";
-import sendEmail from "../utils/emailService.js";
+import { sendEmail } from "../utils/emailService.js";
 import supabase from "../Middleware/supabase.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generateGenericPDF } from "../utils/generateGenericPDF.js";
@@ -323,4 +323,5 @@ export const downloadPurchasePDF = async (req, res) => {
     console.error("❌ Purchase PDF error:", err);
     res.status(500).json({ message: "Gagal jana PDF" });
   }
+
 };
