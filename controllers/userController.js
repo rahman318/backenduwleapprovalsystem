@@ -1,7 +1,7 @@
 // controllers/userController.js
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import User from "../models/user.js";
 
 // ================== REGISTER USER ==================
 export const registerUser = async (req, res) => {
@@ -136,4 +136,5 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({ message: "Gagal padam user" });
   }
 };
+
 
