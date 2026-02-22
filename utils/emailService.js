@@ -1,35 +1,26 @@
-import nodemailer from "nodemailer";
+import axios from "axios";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: 465,
-  secure: true,
-  auth: {
-    user: "admin@underwaterworldlangkawi.com",
-    pass: "Uwl<9330>",
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-});
-
-// 🔵 NOW SUPPORT ATTACHMENTS
-const sendEmail = async ({ to, subject, html, attachments }) => {
+export const sendEmail = async (toEmail, subject, htmlContent) => {
   try {
-    await transporter.sendMail({
-      from: `"e-Approval System" <admin@underwaterworldlangkawi.com>`,
-      to,
-      subject,
-      html,
-      attachments, // <-- SUPPORT ATTACHMENT DI SINI
-    });
-
-    console.log(`✅ Emel berjaya dihantar kepada: ${to}`);
+    await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: {
+          name: "E-Approval System",
+          email: process.env.BREVO_SENDER_EMAIL,
+        },
+        to: [{ email: toEmail }],
+        subject: subject,
+        htmlContent: htmlContent,
+      },
+      {
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+        },
+      }
+    );
   } catch (error) {
-    console.error("❌ Ralat hantar emel:", error);
+    console.error("Email send error:", error.response?.data || error.message);
   }
 };
-
-export default sendEmail;
