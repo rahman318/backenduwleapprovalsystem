@@ -135,15 +135,50 @@ try {
     for (const approval of populatedRequest.approvals) {
       if (!approval.approverId?.email) continue;
       const subject = `Permohonan Baru Dari ${staffName}`;
-      const html = `
-        <p>Hi ${approval.approverId.username || approval.approverName || "Approver"},</p>
-        <p>Anda mempunyai permohonan baru untuk semakan.</p>
-        <p><b>Jenis Permohonan:</b> ${requestType}</p>
-        <p><b>Butiran:</b> ${details || "-"}</p>
-        ${requestType === "Cuti" ? `<p><b>Tarikh Mula:</b> ${leaveStart}</p><p><b>Tarikh Tamat:</b> ${leaveEnd}</p>` : ""}
-        ${itemsData.length ? `<hr/><p><b>Senarai Item:</b></p><ul>${itemsData.map((i, idx) => `<li>${idx + 1}. ${i.itemName} | Qty: ${i.quantity} | ${i.reason || "-"}</li>`).join("")}</ul>` : ""}
-        <hr/><p>Sila log masuk dashboard untuk semakan.</p>
-      `;
+      const dashboardUrl = process.env.DASHBOARD_URL || "https://your-dashboard-link.com";
+
+const html = `
+  <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+    <h2 style="color: #1a73e8;">Permohonan Baru Untuk Semakan</h2>
+
+    <p>Hi <strong>${approval.approverId.username || approval.approverName || "Approver"}</strong>,</p>
+
+    <p>Anda mempunyai permohonan baru yang perlu disemak.</p>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+      <tr>
+        <td style="padding: 6px 8px; font-weight: bold; background: #f0f0f0;">Jenis Permohonan</td>
+        <td style="padding: 6px 8px;">${requestType}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 8px; font-weight: bold; background: #f0f0f0;">Butiran</td>
+        <td style="padding: 6px 8px;">${details || "-"}</td>
+      </tr>
+      ${requestType === "Cuti" ? `
+      <tr>
+        <td style="padding: 6px 8px; font-weight: bold; background: #f0f0f0;">Tarikh Mula</td>
+        <td style="padding: 6px 8px;">${leaveStart}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 8px; font-weight: bold; background: #f0f0f0;">Tarikh Tamat</td>
+        <td style="padding: 6px 8px;">${leaveEnd}</td>
+      </tr>` : ""}
+    </table>
+
+    ${itemsData.length ? `
+    <p><strong>Senarai Item:</strong></p>
+    <ul style="padding-left: 20px;">
+      ${itemsData.map((i, idx) => `<li>${i.itemName} | Qty: ${i.quantity} | ${i.reason || "-"}</li>`).join("")}
+    </ul>` : ""}
+
+    <p>Untuk semakan dan tindakan lanjut, sila log masuk dashboard:</p>
+    <p><a href="${dashboardUrl}" style="display:inline-block; padding: 10px 15px; background-color:#1a73e8; color:#fff; text-decoration:none; border-radius:5px;">Log Masuk Dashboard</a></p>
+
+    <hr style="margin:20px 0; border:none; border-top:1px solid #ddd;">
+
+    <p style="font-size: 12px; color: #666;">Email ini dijana secara automatik oleh Sistem e-Approval. Sila jangan balas email ini.</p>
+  </div>
+`;
       try {
         await sendEmail({ 
           to: approval.approverId.email, 
@@ -330,6 +365,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
