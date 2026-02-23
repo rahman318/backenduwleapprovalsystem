@@ -1,5 +1,5 @@
 import express from "express";
-import sendEmail from "../utils/emailService.js";
+import { sendEmail } from "../utils/emailService.js";
 
 const router = express.Router();
 
@@ -11,5 +11,6 @@ router.get("/test-email", async (req, res) => {
     res.status(500).send("❌ Ralat hantar emel: " + err.message);
   }
 });
+
 
 export default router;
