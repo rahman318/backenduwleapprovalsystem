@@ -247,5 +247,8 @@ export async function generateGenericPDF(request) {
     color: rgb(0.4, 0.4, 0.4),
   });
 
-  return await pdf.save({ useObjectStreams: false });
+  // ... semua code generate PDF bossskurrr tetap
+const pdfBytes = await pdf.save({ useObjectStreams: false });
+return Buffer.from(pdfBytes); // convert ke Buffer untuk attachment
 }
+
