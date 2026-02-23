@@ -267,6 +267,34 @@ export const approveLevel = async (req, res) => {
       } catch (pdfErr) { console.error("❌ Error generate/send final PDF/email:", pdfErr.message); }
     }
 
+// ================== SEND EMAIL TO STAFF ==================
+    if (allApproved && request.staffEmail) {
+      const html = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+          <h2 style="color: #1a73e8;">Permohonan Anda Telah Diluluskan</h2>
+          <p>Hi <strong>${request.staffName}</strong>,</p>
+          <p>Permohonan anda telah diluluskan oleh semua approver.</p>
+          <p>Butiran permohonan:</p>
+          <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
+            <tr><td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Jenis Permohonan</td><td style="padding:6px 8px;">${request.requestType}</td></tr>
+            <tr><td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Butiran</td><td style="padding:6px 8px;">${request.details || "-"}</td></tr>
+          </table>
+          <p>Sila semak attachment PDF untuk dokumen rasmi.</p>
+        </div>
+      `;
+
+      try {
+        await sendEmail({
+          to: request.staffEmail,
+          subject: `Permohonan Anda Telah Diluluskan: ${request.requestType}`,
+          html,
+          attachments: pdfBuffer ? [{ filename: `Permohonan_${request._id}.pdf`, content: pdfBuffer }] : []
+        });
+      } catch (emailErr) {
+        console.error("❌ Gagal hantar email ke staff:", emailErr.message);
+      }
+    }
+    
     await request.save();
     res.status(200).json({ message: "Level approved successfully", request });
 
@@ -365,6 +393,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
