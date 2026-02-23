@@ -24,10 +24,12 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
         },
       }
     );
-
+    console.log("BREVO KEY:", process.env.BREVO_API_KEY ? "Loaded ✅" : "Missing ❌");
+    console.log("SENDER:", process.env.BREVO_SENDER_EMAIL);
     console.log(`✅ Email sent to ${to}`);
   } catch (error) {
     console.error("❌ Email sending failed:", error.response?.data || error.message);
     throw error;
   }
 };
+
