@@ -1,4 +1,6 @@
-const sendEmail = async (toEmail, subject, htmlContent) => {
+import axios from "axios";
+
+export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
     await axios.post(
       "https://api.brevo.com/v3/smtp/email",
@@ -7,9 +9,13 @@ const sendEmail = async (toEmail, subject, htmlContent) => {
           name: "E-Approval System",
           email: process.env.BREVO_SENDER_EMAIL,
         },
-        to: [{ email: toEmail }],
+        to: [{ email: to }],
         subject: subject,
-        htmlContent: htmlContent,
+        htmlContent: html,
+        attachment: attachments.map(att => ({
+          name: att.filename,
+          content: att.content.toString("base64"),
+        })),
       },
       {
         headers: {
@@ -18,9 +24,10 @@ const sendEmail = async (toEmail, subject, htmlContent) => {
         },
       }
     );
+
+    console.log(`✅ Email sent to ${to}`);
   } catch (error) {
-    console.error("Email send error:", error.response?.data || error.message);
+    console.error("❌ Email sending failed:", error.response?.data || error.message);
+    throw error;
   }
 };
-
-export default sendEmail;
