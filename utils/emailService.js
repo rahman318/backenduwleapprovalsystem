@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
 
@@ -38,3 +40,4 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
     throw error;
   }
 };
+
