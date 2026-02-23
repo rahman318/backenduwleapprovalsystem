@@ -120,12 +120,17 @@ export const createRequest = async (req, res) => {
 
     // ================== GENERATE PDF BUFFER (no fs, directly buffer) ==================
     let pdfBuffer = null;
-    try {
-      pdfBuffer = await generateGenericPDF(populatedRequest);
-    } catch (pdfErr) {
-      console.error("❌ Error generate PDF buffer:", pdfErr.message);
-    }
-
+try {
+  pdfBuffer = await generateGenericPDF(populatedRequest);
+  if (!Buffer.isBuffer(pdfBuffer)) {
+    console.error("❌ pdfBuffer bukan Buffer! type:", typeof pdfBuffer);
+    pdfBuffer = null; // jangan hantar attachment rosak
+  } else {
+    console.log("✅ pdfBuffer berjaya, size:", pdfBuffer.length);
+  }
+} catch (pdfErr) {
+  console.error("❌ Error generate PDF buffer:", pdfErr.message);
+}
         // ================== SEND EMAIL TO APPROVERS ==================
     for (const approval of populatedRequest.approvals) {
       if (!approval.approverId?.email) continue;
@@ -325,5 +330,6 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
