@@ -211,12 +211,32 @@ if (request.priority === "Urgent") {
     request.maintenanceStatus = "Submitted"; // reset status bila assign baru
     await request.save();
 
-    console.log(`⚠️ Email skipped: assign technician to ${technician.email}`);
+      // ================== EMAIL NOTIFICATION ==================
+    await sendEmail(
+      technician.email,
+      "New Maintenance Task Assigned - E-Approval System",
+      `
+        <h2>Hello ${technician.name},</h2>
+        <p>You have been assigned a new maintenance request.</p>
+        <hr/>
+        <p><strong>Issue:</strong> ${request.issue}</p>
+        <p><strong>Location:</strong> ${request.location}</p>
+        <p><strong>Priority:</strong> ${request.priority}</p>
+        <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+        <br/>
+        <p>Please login to the system to start the task.</p>
+        <br/>
+        <p>Regards,<br/>E-Approval System</p>
+      `
+    );
+
+    console.log(`✅ Email sent to ${technician.email}`);
 
     res.status(200).json({
-      message: "Technician assigned (email skipped).",
-      request, // return object supaya frontend update UI terus
+      message: "Technician assigned & email sent successfully.",
+      request,
     });
+
   } catch (err) {
     console.error("❌ Error assign technician:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -225,3 +245,4 @@ if (request.priority === "Urgent") {
 
 
 export default router;
+
