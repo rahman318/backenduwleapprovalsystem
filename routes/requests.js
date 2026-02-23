@@ -4,7 +4,7 @@ import multer from "multer";
 import { verifyToken } from "../middleware/auth.js";
 import Request from "../models/request.js";
 import User from "../models/user.js";
-import sendEmail from "../utils/sendEmail.js";
+import sendEmail from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generatePDFWithLogo } from "../utils/generateGenericPDF.js";
 
@@ -280,5 +280,6 @@ router.get("/:id/pdf", async (req, res) => {
     res.status(500).send("PDF gagal dijana");
   }
 });
+
 
 export default router;
