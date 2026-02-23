@@ -76,21 +76,32 @@ router.post("/", verifyToken, upload.array("files"), async (req, res) => {
     const savedRequest = await newRequest.save();
 
     // 🔹 Send email notification to approvers
-    for (const approval of approvalsData) {
-      if (!approval.approverId) continue;
-      const approverUser = await User.findById(approval.approverId);
-      if (!approverUser?.email) continue;
+const emailPromises = [];
 
-      const subject = `Permohonan Baru Dari ${staffName}`;
-      const html = `
-        <p>Hi ${approverUser.username || approval.approverName},</p>
-        <p>Anda mempunyai permohonan baru untuk semakan.</p>
-        <p><b>Jenis Permohonan:</b> ${requestType}</p>
-        <p><b>Butiran:</b> ${details || "-"}</p>
-        <p>Sila log masuk dashboard untuk semakan.</p>
-      `;
-      await sendEmail(approverUser.email, subject, html);
-    }
+for (const approval of approvalsData) {
+  if (!approval.approverId) continue;
+
+  const approverUser = await User.findById(approval.approverId);
+  if (!approverUser?.email) continue;
+
+  const subject = `Permohonan Baru Dari ${staffName}`;
+  const html = `
+    <p>Hi ${approverUser.username || approval.approverName},</p>
+    <p>Anda mempunyai permohonan baru untuk semakan.</p>
+    <p><b>Jenis Permohonan:</b> ${requestType}</p>
+    <p><b>Butiran:</b> ${details || "-"}</p>
+    <p>Sila log masuk dashboard untuk semakan.</p>
+  `;
+
+  emailPromises.push(
+    sendEmail(approverUser.email, subject, html)
+  );
+}
+
+// Hantar semua email serentak
+await Promise.all(emailPromises);
+
+console.log("✅ Email notification sent to all approvers");
 
     res.status(201).json({ success: true, request: savedRequest });
   } catch (err) {
@@ -283,3 +294,4 @@ router.get("/:id/pdf", async (req, res) => {
 
 
 export default router;
+
