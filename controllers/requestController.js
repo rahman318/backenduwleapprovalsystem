@@ -326,6 +326,83 @@ export const rejectLevel = async (req, res) => {
   }
 };
 
+// ================== ASSIGN TECHNICIAN ==================
+
+export const assignTechnician = async (req, res) => {
+  try {
+    const user = req.user;
+    const { id } = req.params;
+    const { technicianId } = req.body;
+
+    if (!technicianId)
+      return res.status(400).json({ message: "TechnicianId diperlukan" });
+
+    if (user.role.toLowerCase() !== "approver")
+      return res.status(403).json({ message: "Hanya Approver boleh assign." });
+
+    const request = await Request.findById(id);
+    if (!request)
+      return res.status(404).json({ message: "Request tidak dijumpai" });
+
+    const technician = await User.findById(technicianId);
+    if (!technician)
+      return res.status(404).json({ message: "Technician tidak dijumpai" });
+
+    if (technician.role.toLowerCase() !== "technician")
+      return res.status(400).json({ message: "User bukan technician" });
+
+    // ✅ Update request
+    request.assignedTechnician = technicianId;
+
+    // SLA logic
+    request.slaHours = request.priority === "Urgent" ? 4 : 24;
+
+    request.maintenanceStatus = "Submitted";
+    await request.save();
+
+    // ================== EMAIL NOTIFICATION ==================
+    console.log("📧 Preparing to send email notification...");
+
+    if (technician.email) {
+      try {
+        console.log(`📨 Sending email to: ${technician.email}`);
+
+        await sendEmail(
+          technician.email,
+          "New Maintenance Task Assigned - E-Approval System",
+          `
+            <div style="font-family: Arial; padding: 15px;">
+              <h2>Hello ${technician.name},</h2>
+              <p>You have been assigned a new maintenance request.</p>
+              <hr/>
+              <p><strong>Issue:</strong> ${request.issue}</p>
+              <p><strong>Location:</strong> ${request.location}</p>
+              <p><strong>Priority:</strong> ${request.priority}</p>
+              <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+              <br/>
+              <p>Please login to the system to start the task.</p>
+            </div>
+          `
+        );
+
+        console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+
+      } catch (emailError) {
+        console.error("❌ FAILED: Email sending error:", emailError.message);
+      }
+    }
+
+    res.status(200).json({
+      message: "Technician assigned successfully.",
+      request,
+    });
+
+  } catch (err) {
+    console.error("❌ Error assign technician:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
 // ================== TECHNICIAN UPDATE STATUS ==================
 export const technicianUpdateStatus = async (req, res) => {
   try {
@@ -393,6 +470,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
