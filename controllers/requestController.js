@@ -381,7 +381,7 @@ export const assignTechnician = async (req, res) => {
       <p><strong>SLA:</strong> ${request.slaHours} hours</p>
     </div>
           `
-        );
+        });
 
         console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
 
@@ -468,6 +468,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
