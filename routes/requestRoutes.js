@@ -6,7 +6,6 @@ import { sendEmail } from "../utils/emailService.js";
 import authMiddleware from "../Middleware/authMiddleware.js";
 import supabase from "../Middleware/supabase.js"; 
 import Request from "../models/Requests.js";
-import { sendEmail } from "../utils/emailService.js";
 import User from "../models/user.js";
 
 import {
@@ -262,6 +261,7 @@ res.status(200).json({
 
 
 export default router;
+
 
 
 
