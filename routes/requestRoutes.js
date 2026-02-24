@@ -212,40 +212,57 @@ if (request.priority === "Urgent") {
     request.maintenanceStatus = "Submitted"; // reset status bila assign baru
     await request.save();
 
-      // ================== EMAIL NOTIFICATION ==================
+     // ================== EMAIL NOTIFICATION ==================
+
+console.log("📧 Preparing to send email notification...");
+
+if (!technician) {
+  console.error("❌ Technician not found in database");
+} else if (!technician.email) {
+  console.warn(`⚠️ Technician ${technician.name} has no email address`);
+} else {
+
+  try {
+    console.log(`📨 Sending email to: ${technician.email}`);
+
     await sendEmail(
       technician.email,
       "New Maintenance Task Assigned - E-Approval System",
       `
-        <h2>Hello ${technician.name},</h2>
-        <p>You have been assigned a new maintenance request.</p>
-        <hr/>
-        <p><strong>Issue:</strong> ${request.issue}</p>
-        <p><strong>Location:</strong> ${request.location}</p>
-        <p><strong>Priority:</strong> ${request.priority}</p>
-        <p><strong>SLA:</strong> ${request.slaHours} hours</p>
-        <br/>
-        <p>Please login to the system to start the task.</p>
-        <br/>
-        <p>Regards,<br/>E-Approval System</p>
+        <div style="font-family: Arial; padding: 15px;">
+          <h2 style="color:#2c3e50;">Hello ${technician.name},</h2>
+          <p>You have been assigned a new maintenance request.</p>
+          <hr/>
+          <p><strong>Issue:</strong> ${request.issue}</p>
+          <p><strong>Location:</strong> ${request.location}</p>
+          <p><strong>Priority:</strong> ${request.priority}</p>
+          <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+          <br/>
+          <p>Please login to the system to start the task.</p>
+          <br/>
+          <p style="font-size:12px;color:gray;">
+            This is an automated message from E-Approval System.
+          </p>
+        </div>
       `
     );
 
-    console.log(`✅ Email sent to ${technician.email}`);
+    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
 
-    res.status(200).json({
-      message: "Technician assigned & email sent successfully.",
-      request,
-    });
-
-  } catch (err) {
-    console.error("❌ Error assign technician:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+  } catch (emailError) {
+    console.error("❌ FAILED: Email sending error");
+    console.error(emailError.message);
   }
+}
+
+res.status(200).json({
+  message: "Technician assigned successfully.",
+  request,
 });
 
 
 export default router;
+
 
 
 
