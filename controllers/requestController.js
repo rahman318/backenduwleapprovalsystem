@@ -366,30 +366,31 @@ export const assignTechnician = async (req, res) => {
     if (!technician.email || !technician.email.includes("@")) {
   console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
 } else {
-  console.log(`📨 Sending email to: ${technician.email}`);
+  try {  // 🔥 Lupa ini sebelum
+    console.log(`📨 Sending email to: ${technician.email}`);
 
-        await sendEmail({
-  to: technician.email,
-  subject: "New Maintenance Task Assigned - E-Approval System",
-  html: `
-    <div style="font-family: Arial; padding: 15px;">
-      <h2>Hello ${technician.name},</h2>
-      <p>You have been assigned a new maintenance request.</p>
-      <hr/>
-      <p><strong>Issue:</strong> ${request.issue}</p>
-      <p><strong>Location:</strong> ${request.location}</p>
-      <p><strong>Priority:</strong> ${request.priority}</p>
-      <p><strong>SLA:</strong> ${request.slaHours} hours</p>
-    </div>
-          `
-        });
+    await sendEmail({
+      to: technician.email,
+      subject: "New Maintenance Task Assigned - E-Approval System",
+      html: `
+        <div style="font-family: Arial; padding: 15px;">
+          <h2>Hello ${technician.name},</h2>
+          <p>You have been assigned a new maintenance request.</p>
+          <hr/>
+          <p><strong>Issue:</strong> ${request.issue}</p>
+          <p><strong>Location:</strong> ${request.location}</p>
+          <p><strong>Priority:</strong> ${request.priority}</p>
+          <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+        </div>
+      `
+    });
 
-        console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
 
-      } catch (emailError) {
-        console.error("❌ FAILED: Email sending error:", emailError.message);
-      }
-    }
+  } catch (emailError) {
+    console.error("❌ FAILED: Email sending error:", emailError.message);
+  }
+}
 
     res.status(200).json({
       message: "Technician assigned successfully.",
@@ -469,6 +470,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
