@@ -362,12 +362,13 @@ export const assignTechnician = async (req, res) => {
 
     // ================== EMAIL NOTIFICATION ==================
     console.log("📧 Preparing to send email notification...");
+console.log("Technician raw email:", JSON.stringify(technician.email));
 
-    if (!technician.email || !technician.email.includes("@")) {
+if (!technician.email || !technician.email.includes("@")) {
   console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
 } else {
-  try {  // 🔥 Lupa ini sebelum
-    console.log(`📨 Sending email to: ${technician.email}`);
+  try {
+    console.log(`📨 Attempting to send email to: ${technician.email}`);
 
     await sendEmail({
       to: technician.email,
@@ -388,7 +389,8 @@ export const assignTechnician = async (req, res) => {
     console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
 
   } catch (emailError) {
-    console.error("❌ FAILED: Email sending error:", emailError.message);
+    console.error("❌ FAILED: Email sending error");
+    console.error(emailError.response?.data || emailError.message);
   }
 }
 
@@ -470,6 +472,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
