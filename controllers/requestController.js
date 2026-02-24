@@ -363,9 +363,10 @@ export const assignTechnician = async (req, res) => {
     // ================== EMAIL NOTIFICATION ==================
     console.log("📧 Preparing to send email notification...");
 
-    if (technician.email) {
-      try {
-        console.log(`📨 Sending email to: ${technician.email}`);
+    if (!technician.email || !technician.email.includes("@")) {
+  console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+} else {
+  console.log(`📨 Sending email to: ${technician.email}`);
 
         await sendEmail({
   to: technician.email,
@@ -468,6 +469,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
