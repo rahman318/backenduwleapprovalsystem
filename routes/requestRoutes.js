@@ -15,6 +15,7 @@ import {
   rejectLevel,
   deleteRequestById,
   technicianUpdateStatus,
+  assignTechnician,
 } from "../controllers/requestController.js";
 import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
 
@@ -266,6 +267,7 @@ res.status(200).json({
 });   // 🔥 TUTUP ROUTE DI SINI
 
 export default router;
+
 
 
 
