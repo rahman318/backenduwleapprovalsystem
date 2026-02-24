@@ -211,56 +211,53 @@ if (request.priority === "Urgent") {
     request.maintenanceStatus = "Submitted"; // reset status bila assign baru
     await request.save();
 
-     // ================== EMAIL NOTIFICATION ==================
-
-console.log("📧 Preparing to send email notification...");
-
-if (!technician) {
-  console.error("❌ Technician not found in database");
-} else if (!technician.email) {
-  console.warn(`⚠️ Technician ${technician.name} has no email address`);
-} else {
-
+     // ================== ASSIGN TECHNICIAN ==================
+router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
   try {
-    console.log(`📨 Sending email to: ${technician.email}`);
+    const user = req.user;
+    const { id } = req.params;
+    const { technicianId } = req.body;
 
-    await sendEmail(
-      technician.email,
-      "New Maintenance Task Assigned - E-Approval System",
-      `
-        <div style="font-family: Arial; padding: 15px;">
-          <h2 style="color:#2c3e50;">Hello ${technician.name},</h2>
-          <p>You have been assigned a new maintenance request.</p>
-          <hr/>
-          <p><strong>Issue:</strong> ${request.issue}</p>
-          <p><strong>Location:</strong> ${request.location}</p>
-          <p><strong>Priority:</strong> ${request.priority}</p>
-          <p><strong>SLA:</strong> ${request.slaHours} hours</p>
-          <br/>
-          <p>Please login to the system to start the task.</p>
-          <br/>
-          <p style="font-size:12px;color:gray;">
-            This is an automated message from E-Approval System.
-          </p>
-        </div>
-      `
-    );
+    if (!technicianId)
+      return res.status(400).json({ message: "TechnicianId diperlukan" });
 
-    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+    // ✅ Hanya Approver boleh assign
+    if (user.role.toLowerCase() !== "approver")
+      return res.status(403).json({ message: "Hanya Approver boleh assign." });
 
-  } catch (emailError) {
-    console.error("❌ FAILED: Email sending error");
-    console.error(emailError.message);
-  }
+    const request = await Request.findById(id);
+    if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
+
+    const technician = await User.findById(technicianId);
+    if (!technician) return res.status(404).json({ message: "Technician tidak dijumpai" });
+    if (technician.role.toLowerCase() !== "technician")
+      return res.status(400).json({ message: "User bukan technician" });
+
+    // ✅ Update request
+    request.assignedTechnician = technicianId;
+    // SLA logic
+if (request.priority === "Urgent") {
+  request.slaHours = 4;
+} else {
+  request.slaHours = 24;
 }
+    request.maintenanceStatus = "Submitted"; // reset status bila assign baru
+    await request.save();
 
-res.status(200).json({
-  message: "Technician assigned successfully.",
-  request,
+    console.log(`⚠️ Email skipped: assign technician to ${technician.email}`);
+
+    res.status(200).json({
+      message: "Technician assigned (email skipped).",
+      request, // return object supaya frontend update UI terus
+    });
+  } catch (err) {
+    console.error("❌ Error assign technician:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 });
 
-
 export default router;
+
 
 
 
