@@ -1,13 +1,13 @@
 // controllers/requestController.js
 import Request from "../models/Requests.js";
+import User from "../models/User.js";
 import { sendEmail } from "../utils/emailService.js";
-import supabase from "../Middleware/supabase.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generateGenericPDF } from "../utils/generateGenericPDF.js";
 import generatePDF from "../utils/generatePDF.js";
 import multer from "multer";
 
-// ================== MULTER SETUP (jika frontend hantar FormData) ==================
+// ================== MULTER SETUP ==================
 export const upload = multer({ storage: multer.memoryStorage() });
 
 // ================== DELETE REQUEST ==================
@@ -24,24 +24,23 @@ export const deleteRequestById = async (req, res) => {
 // ================== CREATE REQUEST ==================
 export const createRequest = async (req, res) => {
   try {
-    // ================== HANDLE ATTACHMENTS ==================
-    let attachments = [];
-
+    // -------- HANDLE ATTACHMENTS --------
+    let attachmentsData = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const publicUrl = await uploadFileToSupabase(file);
-        attachments.push({
+        attachmentsData.push({
           originalName: file.originalname,
           fileName: file.originalname,
-          url: publicUrl, // public URL dari Supabase
+          url: publicUrl,
           mimetype: file.mimetype,
           size: file.size,
         });
       }
-      console.log("✅ Files uploaded to Supabase:", attachments);
+      console.log("✅ Files uploaded to Supabase & prepared for Mongo:", attachmentsData);
     }
 
-    // ================== DESTRUCTURE REQUEST BODY ==================
+    // -------- DESTRUCTURE REQUEST BODY --------
     const {
       userId,
       staffName,
@@ -56,7 +55,7 @@ export const createRequest = async (req, res) => {
       assignedTechnician,
     } = req.body;
 
-    // ================== GENERATE SERIAL NUMBER ==================
+    // -------- GENERATE SERIAL NUMBER --------
     const lastRequest = await Request.findOne().sort({ createdAt: -1 });
     let lastNumber = 0;
     if (lastRequest && lastRequest.serialNumber) {
@@ -66,13 +65,10 @@ export const createRequest = async (req, res) => {
     const year = new Date().getFullYear();
     const serialNumber = `REQ-${year}-${String(lastNumber + 1).padStart(4, "0")}`;
 
-    // ================== FIX APPROVALS ==================
+    // -------- PARSE APPROVALS --------
     let approvalsData = [];
     if (approvals) {
-      let parsedApprovals = approvals;
-      if (typeof approvals === "string") {
-        try { parsedApprovals = JSON.parse(approvals); } catch { parsedApprovals = []; }
-      }
+      let parsedApprovals = typeof approvals === "string" ? JSON.parse(approvals || "[]") : approvals;
       if (Array.isArray(parsedApprovals)) {
         approvalsData = parsedApprovals.map((a, index) => ({
           level: a.level || index + 1,
@@ -87,62 +83,40 @@ export const createRequest = async (req, res) => {
       }
     }
 
-    // ================== FIX MULTI-ITEM ==================
+    // -------- PARSE ITEMS --------
     let itemsData = [];
     if (items) {
-      if (typeof items === "string") {
-        try { itemsData = JSON.parse(items); if (!Array.isArray(itemsData)) itemsData = []; } catch { itemsData = []; }
-      } else if (Array.isArray(items)) itemsData = items;
-
-      itemsData = itemsData.map(item => ({
-        itemName: item.itemName || item.description || "-",
-        quantity: Number(item.quantity) || Number(item.qty) || 0,
-        estimatedCost: Number(item.estimatedCost) || 0,
-        supplier: item.supplier || "",
-        reason: item.reason || item.remarks || "-",
-        startDate: item.startDate ? new Date(item.startDate) : null,
-        endDate: item.endDate ? new Date(item.endDate) : null,
-      }));
+      let parsedItems = typeof items === "string" ? JSON.parse(items || "[]") : items;
+      if (Array.isArray(parsedItems)) {
+        itemsData = parsedItems.map(item => ({
+          itemName: item.itemName || item.description || "-",
+          quantity: Number(item.quantity) || Number(item.qty) || 0,
+          estimatedCost: Number(item.estimatedCost) || 0,
+          supplier: item.supplier || "",
+          reason: item.reason || item.remarks || "-",
+          startDate: item.startDate ? new Date(item.startDate) : null,
+          endDate: item.endDate ? new Date(item.endDate) : null,
+        }));
+      }
     }
 
-        // ================== HANDLE ATTACHMENTS ==================
-let attachmentsData = [];
-
-if (req.files && req.files.length > 0) {
-  for (const file of req.files) {
-    // Upload file ke Supabase
-    const publicUrl = await uploadFileToSupabase(file);
-
-    // Push object lengkap ikut schema MongoDB
-    attachmentsData.push({
-      originalName: file.originalname, // nama asal file
-      fileName: file.originalname,     // nama simpan file (boleh ikut keperluan)
-      url: publicUrl,             // Supabase public URL
-      mimetype: file.mimetype,         // jenis file
-      size: file.size,                 // size dalam bytes
+    // -------- CREATE REQUEST --------
+    const newRequest = new Request({
+      userId,
+      staffName,
+      staffDepartment: staffDepartment || "-",
+      requestType,
+      details: details || "",
+      signatureStaff: signatureStaff || "",
+      attachments: attachmentsData,
+      leaveStart: requestType === "Cuti" ? leaveStart : undefined,
+      leaveEnd: requestType === "Cuti" ? leaveEnd : undefined,
+      items: itemsData,
+      approvals: approvalsData,
+      serialNumber,
+      finalStatus: "Pending",
+      assignedTechnician: assignedTechnician || null,
     });
-  }
-
-  console.log("✅ Files uploaded to Supabase & prepared for Mongo:", attachmentsData);
-}
-
-// ================== CREATE REQUEST ==================
-const newRequest = new Request({
-  userId,
-  staffName,
-  staffDepartment: staffDepartment || "-",
-  requestType,
-  details: details || "",
-  signatureStaff: signatureStaff || "",
-  attachments: attachmentsData,       // <-- pakai array object terus
-  leaveStart: requestType === "Cuti" ? leaveStart : undefined,
-  leaveEnd: requestType === "Cuti" ? leaveEnd : undefined,
-  items: itemsData,
-  approvals: approvalsData,
-  serialNumber,
-  finalStatus: "Pending",
-  assignedTechnician: assignedTechnician || null,
-});
 
     await newRequest.save();
 
@@ -150,83 +124,42 @@ const newRequest = new Request({
       .populate("userId", "username department email")
       .populate("approvals.approverId", "username department email");
 
-    // ================== GENERATE PDF BUFFER (no fs, directly buffer) ==================
+    // -------- GENERATE PDF BUFFER --------
     let pdfBuffer = null;
-try {
-  pdfBuffer = await generateGenericPDF(populatedRequest);
-  if (!Buffer.isBuffer(pdfBuffer)) {
-    console.error("❌ pdfBuffer bukan Buffer! type:", typeof pdfBuffer);
-    pdfBuffer = null; // jangan hantar attachment rosak
-  } else {
-    console.log("✅ pdfBuffer berjaya, size:", pdfBuffer.length);
-  }
-} catch (pdfErr) {
-  console.error("❌ Error generate PDF buffer:", pdfErr.message);
-}
-        // ================== SEND EMAIL TO APPROVERS ==================
+    try {
+      pdfBuffer = await generateGenericPDF(populatedRequest);
+      if (!Buffer.isBuffer(pdfBuffer)) pdfBuffer = null;
+    } catch (pdfErr) { console.error("❌ PDF generate error:", pdfErr.message); }
+
+    // -------- SEND EMAIL TO APPROVERS --------
     for (const approval of populatedRequest.approvals) {
       if (!approval.approverId?.email) continue;
       const subject = `Permohonan Baru Dari ${staffName}`;
       const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
 
-const html = `
-  <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-    <h2 style="color: #1a73e8;">Permohonan Baru Untuk Semakan</h2>
-
-    <p>Hi <strong>${approval.approverId.username || approval.approverName || "Approver"}</strong>,</p>
-
-    <p>Anda mempunyai permohonan baru yang perlu disemak.</p>
-
-    <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-      <tr>
-        <td style="padding: 6px 8px; font-weight: bold; background: #f0f0f0;">Jenis Permohonan</td>
-        <td style="padding: 6px 8px;">${requestType}</td>
-      </tr>
-      <tr>
-        <td style="padding: 6px 8px; font-weight: bold; background: #f0f0f0;">Butiran</td>
-        <td style="padding: 6px 8px;">${details || "-"}</td>
-      </tr>
-      ${requestType === "Cuti" ? `
-      <tr>
-        <td style="padding: 6px 8px; font-weight: bold; background: #f0f0f0;">Tarikh Mula</td>
-        <td style="padding: 6px 8px;">${leaveStart}</td>
-      </tr>
-      <tr>
-        <td style="padding: 6px 8px; font-weight: bold; background: #f0f0f0;">Tarikh Tamat</td>
-        <td style="padding: 6px 8px;">${leaveEnd}</td>
-      </tr>` : ""}
-    </table>
-
-    ${itemsData.length ? `
-    <p><strong>Senarai Item:</strong></p>
-    <ul style="padding-left: 20px;">
-      ${itemsData.map((i, idx) => `<li>${i.itemName} | Qty: ${i.quantity} | ${i.reason || "-"}</li>`).join("")}
-    </ul>` : ""}
-
-    <p>Untuk semakan dan tindakan lanjut, sila log masuk dashboard:</p>
-    <p><a href="${dashboardUrl}" style="display:inline-block; padding: 10px 15px; background-color:#1a73e8; color:#fff; text-decoration:none; border-radius:5px;">Log Masuk Dashboard</a></p>
-
-    <hr style="margin:20px 0; border:none; border-top:1px solid #ddd;">
-
-    <p style="font-size: 12px; color: #666;">Email ini dijana secara automatik oleh Sistem e-Approval. Sila jangan balas email ini.</p>
-  </div>
-`;
+      const html = `
+        <div style="font-family: Arial; line-height:1.5; color:#333;">
+          <h2 style="color:#1a73e8;">Permohonan Baru Untuk Semakan</h2>
+          <p>Hi <strong>${approval.approverId.username || approval.approverName}</strong>,</p>
+          <p>Anda mempunyai permohonan baru yang perlu disemak.</p>
+          <p><strong>Jenis Permohonan:</strong> ${requestType}</p>
+          <p><strong>Butiran:</strong> ${details || "-"}</p>
+          <p><a href="${dashboardUrl}" style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Log Masuk Dashboard</a></p>
+        </div>
+      `;
       try {
-        await sendEmail({ 
-          to: approval.approverId.email, 
-          subject, 
-          html, 
-          attachments: pdfBuffer ? [{ filename: `Permohonan_${newRequest._id}.pdf`, content: pdfBuffer }] : [] 
+        await sendEmail({
+          to: approval.approverId.email,
+          subject,
+          html,
+          attachments: pdfBuffer ? [{ filename: `Permohonan_${newRequest._id}.pdf`, content: pdfBuffer }] : [],
         });
-      } catch (emailErr) {
-        console.error("❌ Gagal hantar email:", emailErr.message);
-      }
+      } catch (emailErr) { console.error("❌ Email error:", emailErr.message); }
     }
 
     res.status(201).json(populatedRequest);
-
   } catch (err) {
-    console.error("❌ createRequest error:", err.message);
+    console.error("❌ createRequest error:", err);
     res.status(500).json({ message: "Gagal simpan request", error: err.message });
   }
 };
@@ -505,4 +438,3 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
-
