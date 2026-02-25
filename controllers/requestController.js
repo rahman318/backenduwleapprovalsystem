@@ -1,6 +1,6 @@
 // controllers/requestController.js
 import Request from "../models/Requests.js";
-import User from "../models/User.js";
+import User from "../models/user.js";
 import { sendEmail } from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generateGenericPDF } from "../utils/generateGenericPDF.js";
@@ -438,3 +438,4 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
