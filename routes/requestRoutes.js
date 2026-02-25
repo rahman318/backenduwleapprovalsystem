@@ -62,12 +62,18 @@ router.post(
   uploadToSupabase,
   (req, res, next) => {
     try {
-      let payload = req.body;
-      if (req.body.data) payload = JSON.parse(req.body.data);
+      let payload;
+if (req.body.data) {
+  payload = JSON.parse(req.body.data); // parsed JSON object
+} else {
+  payload = { ...req.body }; // clone object supaya kita boleh attach fileUrl
+}
 
-      if (req.fileUrl) payload.fileUrl = req.fileUrl;
+if (req.fileUrl) {
+  payload.fileUrl = req.fileUrl; // ✅ attach public URL
+}
 
-      req.parsedData = payload;
+req.parsedData = payload;
       next();
     } catch (err) {
       return res.status(400).json({ message: "Data JSON tak valid" });
@@ -276,5 +282,6 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
+
 
 
