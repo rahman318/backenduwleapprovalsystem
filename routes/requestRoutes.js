@@ -228,26 +228,26 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       console.warn("⚠️ Invalid technician email. Email not sent.");
     } else {
       try {
-        await sendEmail(
-          technician.email,
-          "New Maintenance Task Assigned - E-Approval System",
-          `
-          <div style="font-family: Arial; padding: 15px;">
-            <h2>Hello ${technician.name},</h2>
-            <p>You have been assigned a new maintenance request.</p>
-            <hr/>
-            <p><strong>Issue:</strong> ${request.issue}</p>
-            <p><strong>Location:</strong> ${request.location}</p>
-            <p><strong>Priority:</strong> ${request.priority}</p>
-            <p><strong>SLA:</strong> ${request.slaHours} hours</p>
-            <br/>
-            <p>Please login to the system to start the task.</p>
-            <br/>
-            <p style="font-size:12px;color:gray;">
-              This is an automated message from E-Approval System.
-            </p>
-          </div>
-          `
+        await sendEmail({
+  to: technician.email,
+  subject: "New Maintenance Task Assigned - E-Approval System",
+  html: `
+    <div style="font-family: Arial; padding: 15px;">
+      <h2>Hello ${technician.name},</h2>
+      <p>You have been assigned a new maintenance request.</p>
+      <hr/>
+      <p><strong>Issue:</strong> ${request.issue}</p>
+      <p><strong>Location:</strong> ${request.location}</p>
+      <p><strong>Priority:</strong> ${request.priority}</p>
+      <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+      <br/>
+      <p>Please login to the system to start the task.</p>
+      <br/>
+      <p style="font-size:12px;color:gray;">
+        This is an automated message from E-Approval System.
+      </p>
+    </div>
+  `
         );
 
         console.log("✅ Email sent successfully!");
@@ -268,6 +268,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
+
 
 
 
