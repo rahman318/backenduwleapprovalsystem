@@ -26,18 +26,37 @@ export const createRequest = async (req, res) => {
   try {
     // -------- HANDLE ATTACHMENTS --------
     let attachmentsData = [];
-if (req.file) {
-  const publicUrl = await uploadFileToSupabase(req.file);
-  attachmentsData.push({
-    originalName: req.file.originalname,
-    fileName: req.file.originalname,
-    url: publicUrl,
-    mimetype: req.file.mimetype,
-    size: req.file.size,
-  });
-}
-      console.log("✅ Files uploaded to Supabase & prepared for Mongo:", attachmentsData);
+    if (req.file) {
+      const publicUrl = await uploadFileToSupabase(req.file);
+      attachmentsData.push({
+        originalName: req.file.originalname,
+        fileName: req.file.originalname,
+        url: publicUrl,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      });
     }
+
+    console.log("✅ Files uploaded to Supabase & prepared for Mongo:", attachmentsData);
+
+    // -------- HANDLE OTHER PAYLOAD DATA --------
+    let payload = req.parsedData || req.body;
+
+    // Simpan attachments ke payload
+    payload.attachments = attachmentsData;
+
+    // Simpan ke MongoDB
+    const newRequest = await Request.create(payload);
+
+    res.status(201).json({
+      message: "Request berjaya dihantar!",
+      request: newRequest,
+    });
+  } catch (err) {
+    console.error("❌ Error creating request:", err);
+    res.status(500).json({ message: "Server error: " + err.message });
+  }
+};
 
     // -------- DESTRUCTURE REQUEST BODY --------
     const {
@@ -437,5 +456,6 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
