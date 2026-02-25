@@ -56,7 +56,7 @@ export const createRequest = async (req, res) => {
     console.error("❌ Error creating request:", err);
     res.status(500).json({ message: "Server error: " + err.message });
   }
-};
+}; // <--- pastikan tutup function dengan semicolon, jangan letak comma
 
     // -------- DESTRUCTURE REQUEST BODY --------
     const {
@@ -456,6 +456,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
