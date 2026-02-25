@@ -74,7 +74,7 @@ const requestSchema = new mongoose.Schema(
     }, // <--- BARU (SLA default 24 jam)
     maintenanceStatus: {
       type: String,
-      enum: ["Assigned", "Submitted", "In Progress", "Completed"],
+      enum: ["Submitted", "In Progress", "Completed"],
       default: "Submitted",
     },
     startedAt: { type: Date, default: null },
@@ -94,3 +94,4 @@ const requestSchema = new mongoose.Schema(
 
 
 export default mongoose.model("Request", requestSchema);
+
