@@ -211,10 +211,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 
     // ================== UPDATE REQUEST ==================
     request.assignedTechnician = technician._id;
-
-    // SLA Logic
     request.slaHours = request.priority === "Urgent" ? 4 : 24;
-
     request.finalStatus = "Approved";
     request.maintenanceStatus = "Assigned";
 
@@ -228,10 +225,10 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       console.warn("⚠️ Invalid technician email. Email not sent.");
     } else {
       try {
-  await sendEmail({
-    to: technician.email,
-    subject: "New Maintenance Task Assigned - E-Approval System",
-    html: `
+        await sendEmail({
+          to: technician.email,
+          subject: "New Maintenance Task Assigned - E-Approval System",
+          html: `
 <div style="font-family: Arial; padding: 15px;">
   <h2>Hello ${technician.name},</h2>
   <p>You have been assigned a new maintenance request.</p>
@@ -247,14 +244,16 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
     This is an automated message from E-Approval System.
   </p>
 </div>
-`
-  });
+          `
+        });
 
-  console.log("✅ Email sent successfully!");
-} catch (emailError) {
-  console.error("❌ Email sending failed:", emailError.message);
-}
+        console.log("✅ Email sent successfully!");
+      } catch (emailError) {
+        console.error("❌ Email sending failed:", emailError.message);
+      }
+    }
 
+    // ================== RESPONSE ==================
     res.status(200).json({
       message: "Technician assigned successfully.",
       request,
@@ -267,16 +266,3 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
-
-
-
-
-
-
-
-
-
-
-
-
-
