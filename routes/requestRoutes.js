@@ -210,7 +210,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
     request.assignedTechnician = technician._id;
     request.slaHours = request.priority === "Urgent" ? 4 : 24;
     request.finalStatus = "Approved";
-    request.maintenanceStatus = "Assigned";
+    request.maintenanceStatus = "Submitted";
 
     await request.save();
 
@@ -276,4 +276,5 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
+
 
