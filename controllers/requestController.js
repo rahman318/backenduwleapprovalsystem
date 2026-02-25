@@ -39,25 +39,6 @@ export const createRequest = async (req, res) => {
 
     console.log("✅ Files uploaded to Supabase & prepared for Mongo:", attachmentsData);
 
-    // -------- HANDLE OTHER PAYLOAD DATA --------
-    let payload = req.parsedData || req.body;
-
-    // Simpan attachments ke payload
-    payload.attachments = attachmentsData;
-
-    // Simpan ke MongoDB
-    const newRequest = await Request.create(payload);
-
-    res.status(201).json({
-      message: "Request berjaya dihantar!",
-      request: newRequest,
-    });
-  } catch (err) {
-    console.error("❌ Error creating request:", err);
-    res.status(500).json({ message: "Server error: " + err.message });
-  }
-}; // <--- pastikan tutup function dengan semicolon, jangan letak comma
-
     // -------- DESTRUCTURE REQUEST BODY --------
     const {
       userId,
@@ -147,7 +128,9 @@ export const createRequest = async (req, res) => {
     try {
       pdfBuffer = await generateGenericPDF(populatedRequest);
       if (!Buffer.isBuffer(pdfBuffer)) pdfBuffer = null;
-    } catch (pdfErr) { console.error("❌ PDF generate error:", pdfErr.message); }
+    } catch (pdfErr) {
+      console.error("❌ PDF generate error:", pdfErr.message);
+    }
 
     // -------- SEND EMAIL TO APPROVERS --------
     for (const approval of populatedRequest.approvals) {
@@ -172,11 +155,14 @@ export const createRequest = async (req, res) => {
           html,
           attachments: pdfBuffer ? [{ filename: `Permohonan_${newRequest._id}.pdf`, content: pdfBuffer }] : [],
         });
-      } catch (emailErr) { console.error("❌ Email error:", emailErr.message); }
+      } catch (emailErr) {
+        console.error("❌ Email error:", emailErr.message);
+      }
     }
 
     res.status(201).json(populatedRequest);
-    catch (err) {
+
+  } catch (err) {
     console.error("❌ createRequest error:", err);
     res.status(500).json({ message: "Gagal simpan request", error: err.message });
   }
@@ -456,6 +442,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
