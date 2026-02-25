@@ -18,10 +18,11 @@ export const uploadFileToSupabase = async (file) => {
   if (error) throw new Error(error.message);
 
   const { data: publicData, error: publicError } = supabase
-    .storage.from("eapproval-uploads")
+    .storage.from("eapproval_uploads")
     .getPublicUrl(fileName);
 
   if (publicError) throw new Error(publicError.message);
 
   return publicData.publicUrl; // 🔥 pastikan ini return
 };
+
