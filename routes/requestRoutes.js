@@ -248,7 +248,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       </p>
     </div>
   `
-        );
+        });
 
         console.log("✅ Email sent successfully!");
       } catch (emailError) {
@@ -268,6 +268,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
+
 
 
 
