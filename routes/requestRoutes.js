@@ -195,15 +195,12 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Hanya Approver boleh assign." });
     }
 
-    const request = await Request.findById(id);
-    if (!request) {
-      return res.status(404).json({ message: "Request tidak dijumpai" });
-    }
+    // ================== GET REQUEST & TECHNICIAN ==================
+    const request = await Request.findById(id).exec();
+    if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
-    const technician = await User.findById(technicianId);
-    if (!technician) {
-      return res.status(404).json({ message: "Technician tidak dijumpai" });
-    }
+    const technician = await User.findById(technicianId).exec();
+    if (!technician) return res.status(404).json({ message: "Technician tidak dijumpai" });
 
     if (technician.role.toLowerCase() !== "technician") {
       return res.status(400).json({ message: "User bukan technician" });
@@ -217,26 +214,43 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 
     await request.save();
 
+    // ================== PARSE DETAILS FOR EMAIL ==================
+    const parsedDetails = {
+      technician: {
+        name: technician.name || "N/A",
+        email: technician.email || "N/A",
+        role: technician.role || "N/A",
+      },
+      request: {
+        issueType: request.issueType || "N/A",
+        location: request.location || "N/A",
+        priority: request.priority || "N/A",
+        slaHours: request.slaHours,
+        maintenanceStatus: request.maintenanceStatus || "Pending",
+      }
+    };
+
     // ================== EMAIL NOTIFICATION ==================
     console.log("📧 Preparing to send email notification...");
-    console.log("Technician email:", technician.email);
+    console.log("Technician email:", parsedDetails.technician.email);
 
-    if (!technician.email || !technician.email.includes("@")) {
+    if (!parsedDetails.technician.email || !parsedDetails.technician.email.includes("@")) {
       console.warn("⚠️ Invalid technician email. Email not sent.");
     } else {
       try {
         await sendEmail({
-          to: technician.email,
+          to: parsedDetails.technician.email,
           subject: "New Maintenance Task Assigned - E-Approval System",
           html: `
 <div style="font-family: Arial; padding: 15px;">
-  <h2>Hello ${technician.name},</h2>
+  <h2>Hello ${parsedDetails.technician.name},</h2>
   <p>You have been assigned a new maintenance request.</p>
   <hr/>
-  <p><strong>Issue:</strong> ${request.issueType}</p>
-  <p><strong>Location:</strong> ${request.location}</p>
-  <p><strong>Priority:</strong> ${request.priority}</p>
-  <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+  <p><strong>Issue:</strong> ${parsedDetails.request.issueType}</p>
+  <p><strong>Location:</strong> ${parsedDetails.request.location}</p>
+  <p><strong>Priority:</strong> ${parsedDetails.request.priority}</p>
+  <p><strong>SLA:</strong> ${parsedDetails.request.slaHours} hours</p>
+  <p><strong>Status:</strong> ${parsedDetails.request.maintenanceStatus}</p>
   <br/>
   <p>Please login to the system to start the task.</p>
   <br/>
@@ -253,19 +267,13 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       }
     }
 
-    // ================== RESPONSE ==================
-    res.status(200).json({
-      message: "Technician assigned successfully.",
-      request,
-    });
+    res.json({ message: "Technician assigned successfully!", request: parsedDetails.request });
 
-  } catch (err) {
-    console.error("❌ Error assign technician:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+  } catch (error) {
+    console.error("❌ Error assigning technician:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
 export default router;
-
-
 
