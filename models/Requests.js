@@ -50,9 +50,9 @@ const requestSchema = new mongoose.Schema(
 
     attachments: [
   {
-    originalName: { type: String, default: null }, // nama asal file
-    fileName: { type: String, default: null },     // nama rename/unique kat storage
-    url: { type: String, default: null },          // <-- letak public URL dari Supabase
+    originalName: { type: String, default: null },
+    fileName: { type: String, default: null },
+    url: { type: String, default: null }, // wajib untuk public URL
     mimetype: { type: String, default: null },
     size: { type: Number, default: 0 },
   },
@@ -94,6 +94,7 @@ const requestSchema = new mongoose.Schema(
 
 
 export default mongoose.model("Request", requestSchema);
+
 
 
 
