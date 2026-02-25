@@ -33,7 +33,7 @@ export const createRequest = async (req, res) => {
         attachments.push({
           originalName: file.originalname,
           fileName: file.originalname,
-          filePath: publicUrl, // public URL dari Supabase
+          url: publicUrl, // public URL dari Supabase
           mimetype: file.mimetype,
           size: file.size,
         });
@@ -117,7 +117,7 @@ if (req.files && req.files.length > 0) {
     attachmentsData.push({
       originalName: file.originalname, // nama asal file
       fileName: file.originalname,     // nama simpan file (boleh ikut keperluan)
-      filePath: publicUrl,             // Supabase public URL
+      url: publicUrl,             // Supabase public URL
       mimetype: file.mimetype,         // jenis file
       size: file.size,                 // size dalam bytes
     });
@@ -505,3 +505,4 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
