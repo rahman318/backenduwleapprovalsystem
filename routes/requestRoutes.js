@@ -233,7 +233,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
   <h2>Hello ${technician.name},</h2>
   <p>You have been assigned a new maintenance request.</p>
   <hr/>
-  <p><strong>Issue:</strong> ${request.issue}</p>
+  <p><strong>Issue:</strong> ${request.issueType}</p>
   <p><strong>Location:</strong> ${request.location}</p>
   <p><strong>Priority:</strong> ${request.priority}</p>
   <p><strong>SLA:</strong> ${request.slaHours} hours</p>
@@ -266,3 +266,4 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
+
