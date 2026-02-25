@@ -186,87 +186,89 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { technicianId } = req.body;
 
-    if (!technicianId)
+    if (!technicianId) {
       return res.status(400).json({ message: "TechnicianId diperlukan" });
+    }
 
-    // ✅ Hanya Approver boleh assign
-    if (user.role.toLowerCase() !== "approver")
+    // ✅ Only Approver allowed
+    if (user.role.toLowerCase() !== "approver") {
       return res.status(403).json({ message: "Hanya Approver boleh assign." });
+    }
 
     const request = await Request.findById(id);
-    if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
+    if (!request) {
+      return res.status(404).json({ message: "Request tidak dijumpai" });
+    }
 
     const technician = await User.findById(technicianId);
-    if (!technician) return res.status(404).json({ message: "Technician tidak dijumpai" });
-    if (technician.role.toLowerCase() !== "technician")
-      return res.status(400).json({ message: "User bukan technician" });
+    if (!technician) {
+      return res.status(404).json({ message: "Technician tidak dijumpai" });
+    }
 
-    // ✅ Update request
-    request.assignedTechnician = technicianId;
-    // SLA logic
-if (request.priority === "Urgent") {
-  request.slaHours = 4;
-} else {
-  request.slaHours = 24;
-}
-    request.maintenanceStatus = "Submitted"; // reset status bila assign baru
+    if (technician.role.toLowerCase() !== "technician") {
+      return res.status(400).json({ message: "User bukan technician" });
+    }
+
+    // ================== UPDATE REQUEST ==================
+    request.assignedTechnician = technician._id;
+
+    // SLA Logic
+    request.slaHours = request.priority === "Urgent" ? 4 : 24;
+
+    request.finalStatus = "Approved";
+    request.maintenanceStatus = "Assigned";
+
     await request.save();
 
-     // ================== EMAIL NOTIFICATION ==================
+    // ================== EMAIL NOTIFICATION ==================
+    console.log("📧 Preparing to send email notification...");
+    console.log("Technician email:", technician.email);
 
-console.log("📧 Preparing to send email notification...");
+    if (!technician.email || !technician.email.includes("@")) {
+      console.warn("⚠️ Invalid technician email. Email not sent.");
+    } else {
+      try {
+        await sendEmail(
+          technician.email,
+          "New Maintenance Task Assigned - E-Approval System",
+          `
+          <div style="font-family: Arial; padding: 15px;">
+            <h2>Hello ${technician.name},</h2>
+            <p>You have been assigned a new maintenance request.</p>
+            <hr/>
+            <p><strong>Issue:</strong> ${request.issue}</p>
+            <p><strong>Location:</strong> ${request.location}</p>
+            <p><strong>Priority:</strong> ${request.priority}</p>
+            <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+            <br/>
+            <p>Please login to the system to start the task.</p>
+            <br/>
+            <p style="font-size:12px;color:gray;">
+              This is an automated message from E-Approval System.
+            </p>
+          </div>
+          `
+        );
 
-if (!technician) {
-  console.error("❌ Technician not found in database");
-} else if (!technician.email) {
-  console.warn(`⚠️ Technician ${technician.name} has no email address`);
-} else {
+        console.log("✅ Email sent successfully!");
+      } catch (emailError) {
+        console.error("❌ Email sending failed:", emailError.message);
+      }
+    }
 
-  try {
-    console.log(`📨 Sending email to: ${technician.email}`);
+    res.status(200).json({
+      message: "Technician assigned successfully.",
+      request,
+    });
 
-    await sendEmail(
-      technician.email,
-      "New Maintenance Task Assigned - E-Approval System",
-      `
-        <div style="font-family: Arial; padding: 15px;">
-          <h2 style="color:#2c3e50;">Hello ${technician.name},</h2>
-          <p>You have been assigned a new maintenance request.</p>
-          <hr/>
-          <p><strong>Issue:</strong> ${request.issue}</p>
-          <p><strong>Location:</strong> ${request.location}</p>
-          <p><strong>Priority:</strong> ${request.priority}</p>
-          <p><strong>SLA:</strong> ${request.slaHours} hours</p>
-          <br/>
-          <p>Please login to the system to start the task.</p>
-          <br/>
-          <p style="font-size:12px;color:gray;">
-            This is an automated message from E-Approval System.
-          </p>
-        </div>
-      `
-    );
-
-    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
-
-  } catch (emailError) {
-    console.error("❌ FAILED: Email sending error");
-    console.error(emailError.message);
-  }
-}
-
-res.status(200).json({
-  message: "Technician assigned successfully.",
-  request,
-});
-
-} catch (err) {
+  } catch (err) {
     console.error("❌ Error assign technician:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
-});   // 🔥 TUTUP ROUTE DI SINI
+});
 
 export default router;
+
 
 
 
