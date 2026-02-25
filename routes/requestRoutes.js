@@ -195,9 +195,6 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Hanya Approver boleh assign." });
     }
 
-    // Parse JSON string details
-const details = JSON.parse(request.details);
-    
     const request = await Request.findById(id);
     if (!request) {
       return res.status(404).json({ message: "Request tidak dijumpai" });
@@ -269,5 +266,6 @@ const details = JSON.parse(request.details);
 });
 
 export default router;
+
 
 
