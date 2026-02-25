@@ -24,13 +24,24 @@ export const deleteRequestById = async (req, res) => {
 // ================== CREATE REQUEST ==================
 export const createRequest = async (req, res) => {
   try {
-    // ================== HANDLE ATTACHMENT ==================
-    let attachmentUrl = null;
-    if (req.file) {
-      attachmentUrl = await uploadFileToSupabase(req.file);
-      console.log("✅ File uploaded ke Supabase:", attachmentUrl);
+    // ================== HANDLE ATTACHMENTS ==================
+    let attachments = [];
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const publicUrl = await uploadFileToSupabase(file);
+        attachments.push({
+          originalName: file.originalname,
+          fileName: file.originalname,
+          filePath: publicUrl, // public URL dari Supabase
+          mimetype: file.mimetype,
+          size: file.size,
+        });
+      }
+      console.log("✅ Files uploaded to Supabase:", attachments);
     }
 
+    // ================== DESTRUCTURE REQUEST BODY ==================
     const {
       userId,
       staffName,
@@ -473,6 +484,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
