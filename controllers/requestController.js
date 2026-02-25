@@ -105,23 +105,44 @@ export const createRequest = async (req, res) => {
       }));
     }
 
-        // ================== CREATE REQUEST ==================
-    const newRequest = new Request({
-      userId,
-      staffName,
-      staffDepartment: staffDepartment || "-",
-      requestType,
-      details: details || "",
-      signatureStaff: signatureStaff || "",
-      attachments: attachments, // <-- guna array attachments terus
-      leaveStart: requestType === "Cuti" ? leaveStart : undefined,
-      leaveEnd: requestType === "Cuti" ? leaveEnd : undefined,
-      items: itemsData,
-      approvals: approvalsData,
-      serialNumber,
-      finalStatus: "Pending",
-      assignedTechnician: assignedTechnician || null,
+        // ================== HANDLE ATTACHMENTS ==================
+let attachmentsData = [];
+
+if (req.files && req.files.length > 0) {
+  for (const file of req.files) {
+    // Upload file ke Supabase
+    const publicUrl = await uploadFileToSupabase(file);
+
+    // Push object lengkap ikut schema MongoDB
+    attachmentsData.push({
+      originalName: file.originalname, // nama asal file
+      fileName: file.originalname,     // nama simpan file (boleh ikut keperluan)
+      filePath: publicUrl,             // Supabase public URL
+      mimetype: file.mimetype,         // jenis file
+      size: file.size,                 // size dalam bytes
     });
+  }
+
+  console.log("✅ Files uploaded to Supabase & prepared for Mongo:", attachmentsData);
+}
+
+// ================== CREATE REQUEST ==================
+const newRequest = new Request({
+  userId,
+  staffName,
+  staffDepartment: staffDepartment || "-",
+  requestType,
+  details: details || "",
+  signatureStaff: signatureStaff || "",
+  attachments: attachmentsData,       // <-- pakai array object terus
+  leaveStart: requestType === "Cuti" ? leaveStart : undefined,
+  leaveEnd: requestType === "Cuti" ? leaveEnd : undefined,
+  items: itemsData,
+  approvals: approvalsData,
+  serialNumber,
+  finalStatus: "Pending",
+  assignedTechnician: assignedTechnician || null,
+});
 
     await newRequest.save();
 
@@ -484,19 +505,3 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
