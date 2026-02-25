@@ -113,7 +113,7 @@ export const createRequest = async (req, res) => {
       requestType,
       details: details || "",
       signatureStaff: signatureStaff || "",
-      attachments: attachmentUrl ? [attachmentUrl] : [], // ✅ fixed
+      attachments: attachments, // <-- guna array attachments terus
       leaveStart: requestType === "Cuti" ? leaveStart : undefined,
       leaveEnd: requestType === "Cuti" ? leaveEnd : undefined,
       items: itemsData,
@@ -484,6 +484,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
