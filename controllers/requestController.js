@@ -26,17 +26,16 @@ export const createRequest = async (req, res) => {
   try {
     // -------- HANDLE ATTACHMENTS --------
     let attachmentsData = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const publicUrl = await uploadFileToSupabase(file);
-        attachmentsData.push({
-          originalName: file.originalname,
-          fileName: file.originalname,
-          url: publicUrl,
-          mimetype: file.mimetype,
-          size: file.size,
-        });
-      }
+if (req.file) {
+  const publicUrl = await uploadFileToSupabase(req.file);
+  attachmentsData.push({
+    originalName: req.file.originalname,
+    fileName: req.file.originalname,
+    url: publicUrl,
+    mimetype: req.file.mimetype,
+    size: req.file.size,
+  });
+}
       console.log("✅ Files uploaded to Supabase & prepared for Mongo:", attachmentsData);
     }
 
@@ -438,4 +437,5 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
