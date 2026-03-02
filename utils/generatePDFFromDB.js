@@ -171,6 +171,16 @@ export async function generatePDFWithLogo(requestId) {
     y -= 16;
   }
 
+// ===============================
+// TECHNICIAN REMARK
+// ===============================
+if (request.technicianRemark && request.technicianRemark.trim() !== "") {
+  page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
+  y -= 16;
+  page.drawText(request.technicianRemark, { x: margin + 10, y, size: 11, font });
+  y -= 25;
+}
+  
   /* ========== STATUS ========== */
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
   const statuses = approvals.map(a => a.status?.toUpperCase()).filter(Boolean);
@@ -223,3 +233,4 @@ export async function generatePDFWithLogo(requestId) {
 
   return await pdf.save({ useObjectStreams: false });
 }
+
