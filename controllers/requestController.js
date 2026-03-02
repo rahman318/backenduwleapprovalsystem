@@ -312,7 +312,6 @@ export const assignTechnician = async (req, res) => {
     if (!request)
       return res.status(404).json({ message: "Request tidak dijumpai" });
 
-    // ✅ Ambil full technician object dari User collection
     const technician = await User.findById(technicianId);
     if (!technician)
       return res.status(404).json({ message: "Technician tidak dijumpai" });
@@ -323,6 +322,7 @@ export const assignTechnician = async (req, res) => {
     // ✅ Update Request
     request.assignedTechnician = technicianId;
     request.maintenanceStatus = "Submitted";
+    request.assignedAt = new Date();      // ✅ FIX: set assignedAt
     request.slaHours = request.priority === "Urgent" ? 4 : 24;
 
     await request.save();
@@ -442,6 +442,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
