@@ -174,6 +174,7 @@ export async function generatePDFWithLogo(requestId) {
 // ===============================
 // TECHNICIAN REMARK
 // ===============================
+  
 if (request.technicianRemark && request.technicianRemark.trim() !== "") {
   page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
   y -= 16;
@@ -233,4 +234,5 @@ if (request.technicianRemark && request.technicianRemark.trim() !== "") {
 
   return await pdf.save({ useObjectStreams: false });
 }
+
 
