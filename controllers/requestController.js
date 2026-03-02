@@ -392,13 +392,13 @@ export const technicianUpdateStatus = async (req, res) => {
 
     if (status === "In Progress") {
       request.maintenanceStatus = "In Progress";
+      if (!request.assignedAt) request.assignedAt = new Date(); // ✅ fallback assignedAt
       request.startedAt = new Date();
     } else if (status === "Completed") {
       request.maintenanceStatus = "Completed";
       request.completedAt = new Date();
       request.finalStatus = "Completed";
 
-      // ===== Kira time to complete =====
       if (request.startedAt) {
         const durationMs = request.completedAt - request.startedAt;
         request.timeToComplete = Math.round(durationMs / 60000); // minit
@@ -406,7 +406,7 @@ export const technicianUpdateStatus = async (req, res) => {
     }
 
     await request.save();
-    res.status(200).json({ message: `Request updated to ${status}`, request });
+    res.status(200).json({ message: `Request updated to ${status}`, request }); // ✅ return full request
   } catch (err) {
     console.error("❌ Technician update error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -442,10 +442,3 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
-
-
-
-
-
-
-
