@@ -79,6 +79,9 @@ const requestSchema = new mongoose.Schema(
 
     // ✅ technician remark
     technicianRemark: { type: String, default: "" },
+
+    // ✅ proof image (single image version)
+proofImageUrl: { type: String, default: null },
   },
   {
     timestamps: true,
@@ -86,3 +89,4 @@ const requestSchema = new mongoose.Schema(
 );
 
 export default mongoose.model("Request", requestSchema);
+
