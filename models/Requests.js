@@ -64,14 +64,8 @@ const requestSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
-    assignedAt: { 
-      type: Date, 
-      default: null 
-    }, // <--- BARU (untuk kira SLA)
-    slaHours: { 
-      type: Number, 
-      default: 24 
-    }, // <--- BARU (SLA default 24 jam)
+    assignedAt: { type: Date, default: null },
+    slaHours: { type: Number, default: 24 },
     maintenanceStatus: {
       type: String,
       enum: ["Submitted", "In Progress", "Completed", "Assigned"],
@@ -79,18 +73,16 @@ const requestSchema = new mongoose.Schema(
     },
     startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
-    timeToComplete: { type: Number, default: null }, // dalam minit
-    finalStatus: { 
-      type: String, 
-      enum: ["Pending", "Approved", "Rejected"], 
-      default: "Pending" 
-    },
+    timeToComplete: { type: Number, default: null },
+    finalStatus: { type: String, enum: ["Pending", "Approved", "Rejected"], default: "Pending" },
     serialNumber: { type: String, unique: true, required: true },
+
+    // ✅ technician remark
+    technicianRemark: { type: String, default: "" },
   },
   {
-    timestamps: true, // ✅ betul, diletak sebagai option kedua
+    timestamps: true,
   }
 );
-
 
 export default mongoose.model("Request", requestSchema);
