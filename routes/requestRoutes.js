@@ -185,6 +185,29 @@ router.put("/:id/maintenance", authMiddleware, async (req, res) => {
   }
 });
 
+// ================== PATCH REMARK ==================
+router.patch("/:id/remark", authMiddleware, async (req, res) => {
+  try {
+    const { remark } = req.body;
+    const request = await Request.findById(req.params.id);
+
+    if (!request) return res.status(404).json({ message: "Request tak jumpa" });
+
+    // Hanya assigned technician boleh update remark
+    if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Akses ditolak" });
+    }
+
+    request.remark = remark;
+    await request.save();
+
+    res.status(200).json({ message: "Remark berjaya disimpan", request });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // ================== ASSIGN TECHNICIAN ==================
 router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
   try {
@@ -282,6 +305,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
+
 
 
 
