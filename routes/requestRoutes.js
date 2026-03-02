@@ -208,6 +208,53 @@ router.patch("/:id/remark", authMiddleware, async (req, res) => {
   }
 });
 
+// ================== PATCH TECHNICIAN UPDATE (Remark + Proof Image) ==================
+router.patch(
+  "/:id/technician-update",
+  authMiddleware,
+  upload.single("proofImage"), // multer untuk handle image
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { technicianRemark } = req.body;
+      const file = req.file;
+
+      const request = await Request.findById(id);
+      if (!request) return res.status(404).json({ message: "Request tidak ditemui" });
+
+      // ✅ Pastikan hanya assigned technician boleh update
+      if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
+      }
+
+      // ================= Save proof image to Supabase =================
+      if (file) {
+        const fileName = Date.now() + "-" + file.originalname;
+        const { data, error } = await supabase.storage
+          .from("eapproval_uploads")
+          .upload(fileName, file.buffer, { upsert: true });
+
+        if (error) throw error;
+
+        const { data: publicData } = supabase.storage
+          .from("eapproval_uploads")
+          .getPublicUrl(fileName);
+
+        request.proofImageUrl = publicData.publicUrl;
+      }
+
+      // ================= Update remark =================
+      if (technicianRemark) request.technicianRemark = technicianRemark;
+
+      await request.save();
+      res.json({ message: "Technician update berjaya", request });
+    } catch (err) {
+      console.error("❌ Technician update error:", err);
+      res.status(500).json({ message: "Gagal kemaskini technician update", error: err.message });
+    }
+  }
+);
+
 // ================== ASSIGN TECHNICIAN ==================
 router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
   try {
@@ -305,6 +352,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
+
 
 
 
