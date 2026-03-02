@@ -2,6 +2,7 @@
 import fs from "fs";
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import Request from "../models/Requests.js";
+import fetch from "node-fetch"; // pastikan install node-fetch untuk fetch image
 
 /* ================= HELPERS ================= */
 function drawLineBelowText(page, y, startX = 50, endX = 545, offset = 5, thickness = 0.8) {
@@ -77,72 +78,7 @@ export async function generatePDFWithLogo(requestId) {
   drawLineBelowText(page, y, margin, 545, 4);
   y -= 18;
 
-  if (request.requestType === "PEMBELIAN" && Array.isArray(request.items) && request.items.length) {
-    // ===== PEMBELIAN =====
-    const headers = ["Nama Item", "Qty", "Harga (RM)", "Pembekal", "Tujuan"];
-    const colWidths = [150, 40, 70, 120, 140];
-    let startX = margin;
-
-    headers.forEach((h, i) => {
-      page.drawText(h, { x: startX, y, size: 10, font: bold });
-      startX += colWidths[i];
-    });
-    y -= 16;
-
-    request.items.forEach((item) => {
-      let x = margin;
-      page.drawText(item.itemName || "-", { x, y, size: 10, font });
-      x += colWidths[0];
-      page.drawText(`${item.quantity || 0}`, { x, y, size: 10, font });
-      x += colWidths[1];
-      page.drawText(`${item.estimatedCost || 0}`, { x, y, size: 10, font });
-      x += colWidths[2];
-      page.drawText(item.supplier || "-", { x, y, size: 10, font });
-      x += colWidths[3];
-      page.drawText(item.reason || "-", { x, y, size: 10, font });
-      y -= 16;
-    });
-
-  } else if (request.requestType === "CUTI") {
-    // ===== CUTI =====
-    let leaveDetailsObj = {};
-    try {
-      if (request.leaveDetails) {
-        leaveDetailsObj = typeof request.leaveDetails === "string" ? JSON.parse(request.leaveDetails) : request.leaveDetails;
-      } else if (request.details) {
-        leaveDetailsObj = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
-      }
-    } catch (e) {
-      console.log("Gagal parse leaveDetails:", e);
-    }
-
-    for (const [key, value] of Object.entries(leaveDetailsObj)) {
-      page.drawText(`${key}:`, { x: margin, y, size: 11, font: bold });
-      page.drawText(String(value ?? "-"), { x: margin + 160, y, size: 11, font });
-      y -= 16;
-    }
-
-  } else if (request.requestType === "IT_SUPPORT") {
-    // ===== IT SUPPORT =====
-    let itDetailsObj = {};
-    try {
-      if (request.itDetails) {
-        itDetailsObj = typeof request.itDetails === "string" ? JSON.parse(request.itDetails) : request.itDetails;
-      } else if (request.details) {
-        itDetailsObj = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
-      }
-    } catch (e) {
-      console.log("Gagal parse IT details:", e);
-    }
-
-    for (const [key, value] of Object.entries(itDetailsObj)) {
-      page.drawText(`${key}:`, { x: margin, y, size: 11, font: bold });
-      page.drawText(String(value ?? "-"), { x: margin + 160, y, size: 11, font });
-      y -= 16;
-    }
-
-  } else if (request.requestType === "Maintenance") {
-    // ===== MAINTENANCE =====
+  if (request.requestType === "Maintenance") {
     let maintenanceDetails = {};
     try {
       maintenanceDetails = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
@@ -164,24 +100,36 @@ export async function generatePDFWithLogo(requestId) {
 
     page.drawText(`Penerangan Masalah:`, { x: margin, y, size: 11, font: bold });
     page.drawText(`${maintenanceDetails.description ?? "-"}`, { x: margin + 160, y, size: 11, font });
-    y -= 16;
-
-  } else {
-    page.drawText("-", { x: margin, y, size: 11, font });
-    y -= 16;
+    y -= 25;
   }
 
-// ===============================
-// TECHNICIAN REMARK
-// ===============================
-  
-if (request.technicianRemark && request.technicianRemark.trim() !== "") {
-  page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
-  y -= 16;
-  page.drawText(request.technicianRemark, { x: margin + 10, y, size: 11, font });
-  y -= 25;
-}
-  
+  /* =============================== 
+     TECHNICIAN REMARK & PROOF IMAGE
+  ================================ */
+  if (request.technicianRemark && request.technicianRemark.trim() !== "") {
+    page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
+    y -= 16;
+    page.drawText(request.technicianRemark, { x: margin + 10, y, size: 11, font });
+    y -= 25;
+  }
+
+  // ✅ embed proof image kalau ada
+  if (request.proofImageUrl) {
+    try {
+      const resp = await fetch(request.proofImageUrl);
+      const buf = await resp.arrayBuffer();
+      const img = await pdf.embedPng(Buffer.from(buf));
+      const imgW = 200;
+      const imgH = (img.height / img.width) * imgW;
+      page.drawText("Proof of Work:", { x: margin, y: y, size: 10, font: bold });
+      y -= 14;
+      page.drawImage(img, { x: margin, y: y - imgH, width: imgW, height: imgH });
+      y -= imgH + 20;
+    } catch (err) {
+      console.warn("❌ Failed to embed proof image:", err.message);
+    }
+  }
+
   /* ========== STATUS ========== */
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
   const statuses = approvals.map(a => a.status?.toUpperCase()).filter(Boolean);
@@ -196,7 +144,6 @@ if (request.technicianRemark && request.technicianRemark.trim() !== "") {
     font: bold,
     color: mainStatus === "DITOLAK" ? rgb(0.8, 0.1, 0.1) : mainStatus === "LULUS" ? rgb(0.1, 0.6, 0.2) : rgb(0, 0, 0),
   });
-
   y -= 30;
 
   /* ========== SIGNATURES ========== */
@@ -234,5 +181,3 @@ if (request.technicianRemark && request.technicianRemark.trim() !== "") {
 
   return await pdf.save({ useObjectStreams: false });
 }
-
-
