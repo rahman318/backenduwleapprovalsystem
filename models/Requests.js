@@ -87,6 +87,7 @@ const requestSchema = new mongoose.Schema(
     },
     serialNumber: { type: String, unique: true, required: true },
   },
+  technicianRemark: { type: String, default: "" },
   {
     timestamps: true, // ✅ betul, diletak sebagai option kedua
   }
@@ -94,6 +95,7 @@ const requestSchema = new mongoose.Schema(
 
 
 export default mongoose.model("Request", requestSchema);
+
 
 
 
