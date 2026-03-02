@@ -177,6 +177,16 @@ export async function generateGenericPDF(request) {
 
   y -= 35;
 
+// ===============================
+// TECHNICIAN REMARK
+// ===============================
+if (request.technicianRemark && request.technicianRemark.trim() !== "") {
+  page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
+  y -= 16;
+  page.drawText(request.technicianRemark, { x: margin + 10, y, size: 11, font });
+  y -= 25;
+}
+   
   /* ===============================
      SIGNATURES
   ================================ */
@@ -251,4 +261,5 @@ export async function generateGenericPDF(request) {
 const pdfBytes = await pdf.save({ useObjectStreams: false });
 return Buffer.from(pdfBytes); // convert ke Buffer untuk attachment
 }
+
 
