@@ -198,7 +198,7 @@ router.patch("/:id/remark", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Akses ditolak" });
     }
 
-    request.remark = remark;
+    request.technicianRemark = remark;
     await request.save();
 
     res.status(200).json({ message: "Remark berjaya disimpan", request });
@@ -305,6 +305,7 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 });
 
 export default router;
+
 
 
 
