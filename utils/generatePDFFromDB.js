@@ -106,29 +106,39 @@ export async function generatePDFWithLogo(requestId) {
   /* =============================== 
      TECHNICIAN REMARK & PROOF IMAGE
   ================================ */
-  if (request.technicianRemark && request.technicianRemark.trim() !== "") {
-    page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
-    y -= 16;
-    page.drawText(request.technicianRemark, { x: margin + 10, y, size: 11, font });
-    y -= 25;
-  }
+if (request.technicianRemark && request.technicianRemark.trim() !== "") {
+  page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
+  y -= 16;
+  page.drawText(request.technicianRemark, { x: margin + 10, y, size: 11, font });
+  y -= 25;
+}
 
-  // ✅ embed proof image kalau ada
-  if (request.proofImageUrl) {
-    try {
-      const resp = await fetch(request.proofImageUrl);
-      const buf = await resp.arrayBuffer();
-      const img = await pdf.embedPng(Buffer.from(buf));
-      const imgW = 200;
-      const imgH = (img.height / img.width) * imgW;
-      page.drawText("Proof of Work:", { x: margin, y: y, size: 10, font: bold });
-      y -= 14;
-      page.drawImage(img, { x: margin, y: y - imgH, width: imgW, height: imgH });
-      y -= imgH + 20;
-    } catch (err) {
-      console.warn("❌ Failed to embed proof image:", err.message);
+// ✅ embed proof image (PNG / JPEG) kalau ada
+if (request.proofImageUrl) {
+  try {
+    const resp = await fetch(request.proofImageUrl);
+    const buf = Buffer.from(await resp.arrayBuffer());
+
+    let img;
+    if (request.proofImageUrl.endsWith(".jpg") || request.proofImageUrl.endsWith(".jpeg") || request.proofImageUrl.includes("image/jpeg")) {
+      img = await pdf.embedJpg(buf);
+    } else if (request.proofImageUrl.endsWith(".png") || request.proofImageUrl.includes("image/png")) {
+      img = await pdf.embedPng(buf);
+    } else {
+      throw new Error("Unsupported image type, hanya PNG/JPEG sahaja");
     }
+
+    const imgW = 200;
+    const imgH = (img.height / img.width) * imgW;
+    page.drawText("Proof of Work:", { x: margin, y: y, size: 10, font: bold });
+    y -= 14;
+    page.drawImage(img, { x: margin, y: y - imgH, width: imgW, height: imgH });
+    y -= imgH + 20;
+
+  } catch (err) {
+    console.warn("❌ Failed to embed proof image:", err.message);
   }
+}
 
   /* ========== STATUS ========== */
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
@@ -181,3 +191,4 @@ export async function generatePDFWithLogo(requestId) {
 
   return await pdf.save({ useObjectStreams: false });
 }
+
