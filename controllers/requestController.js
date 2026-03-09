@@ -46,6 +46,7 @@ export const createRequest = async (req, res) => {
       staffDepartment,
       requestType,
       details,
+      problemDescription, // ✅ baru
       signatureStaff,
       leaveStart,
       leaveEnd,
@@ -106,6 +107,7 @@ export const createRequest = async (req, res) => {
       staffDepartment: staffDepartment || "-",
       requestType,
       details: details || "",
+      problemDescription: problemDescription || "", // ✅ default kosong kalau frontend tak hantar
       signatureStaff: signatureStaff || "",
       attachments: attachmentsData,
       leaveStart: requestType === "Cuti" ? leaveStart : undefined,
@@ -442,3 +444,4 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
