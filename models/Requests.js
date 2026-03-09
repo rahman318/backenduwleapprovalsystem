@@ -59,34 +59,53 @@ const requestSchema = new mongoose.Schema(
 ],
 
         // ================= Maintenance Flow =================
-    assignedTechnician: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    assignedAt: { type: Date, default: null },
-    slaHours: { type: Number, default: 24 },
-    maintenanceStatus: {
-      type: String,
-      enum: ["Submitted", "In Progress", "Completed", "Assigned"],
-      default: "Submitted",
-    },
-    startedAt: { type: Date, default: null },
-    completedAt: { type: Date, default: null },
-    timeToComplete: { type: Number, default: null },
-    finalStatus: { type: String, enum: ["Pending", "Approved", "Rejected"], default: "Pending" },
-    serialNumber: { type: String, unique: true, required: true },
+assignedTechnician: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+},
 
-    // ✅ technician remark
-    technicianRemark: { type: String, default: "" },
+assignedAt: { type: Date, default: null },
 
-    // ✅ proof image (single image version)
+slaHours: { type: Number, default: 24 },
+
+maintenanceStatus: {
+  type: String,
+  enum: ["Submitted", "In Progress", "Completed", "Assigned"],
+  default: "Submitted",
+},
+
+startedAt: { type: Date, default: null },
+
+completedAt: { type: Date, default: null },
+
+timeToComplete: { type: Number, default: null },
+
+finalStatus: {
+  type: String,
+  enum: ["Pending", "Approved", "Rejected"],
+  default: "Pending",
+},
+
+serialNumber: { type: String, unique: true, required: true },
+
+// ================= Problem Description =================
+problemDescription: {
+  type: String,
+  required: true,
+},
+
+// ================= Technician Remark =================
+technicianRemark: { type: String, default: "" },
+
+// ================= Proof Image =================
 proofImageUrl: { type: String, default: null },
-  },
-  {
-    timestamps: true,
-  }
+},
+{
+  timestamps: true,
+}
 );
 
 export default mongoose.model("Request", requestSchema);
+
 
