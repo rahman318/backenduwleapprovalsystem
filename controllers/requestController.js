@@ -3,7 +3,9 @@ import Request from "../models/Requests.js";
 import User from "../models/user.js";
 import { sendEmail } from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
-import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js"; // ✅ semua PDF guna ini
+import { generateGenericPDF } from "../utils/generateGenericPDF.js";
+import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
+import generatePDF from "../utils/generatePDF.js";
 import multer from "multer";
 
 // ================== MULTER SETUP ==================
@@ -23,6 +25,7 @@ export const deleteRequestById = async (req, res) => {
 // ================== CREATE REQUEST ==================
 export const createRequest = async (req, res) => {
   try {
+    // -------- HANDLE ATTACHMENTS --------
     let attachmentsData = [];
     if (req.file) {
       const publicUrl = await uploadFileToSupabase(req.file);
@@ -35,13 +38,16 @@ export const createRequest = async (req, res) => {
       });
     }
 
+    console.log("✅ Files uploaded to Supabase & prepared for Mongo:", attachmentsData);
+
+    // -------- DESTRUCTURE REQUEST BODY --------
     const {
       userId,
       staffName,
       staffDepartment,
       requestType,
       details,
-      problemDescription,
+      problemDescription, // ✅ baru
       signatureStaff,
       leaveStart,
       leaveEnd,
@@ -50,6 +56,7 @@ export const createRequest = async (req, res) => {
       assignedTechnician,
     } = req.body;
 
+    // -------- GENERATE SERIAL NUMBER --------
     const lastRequest = await Request.findOne().sort({ createdAt: -1 });
     let lastNumber = 0;
     if (lastRequest && lastRequest.serialNumber) {
@@ -59,6 +66,7 @@ export const createRequest = async (req, res) => {
     const year = new Date().getFullYear();
     const serialNumber = `REQ-${year}-${String(lastNumber + 1).padStart(4, "0")}`;
 
+    // -------- PARSE APPROVALS --------
     let approvalsData = [];
     if (approvals) {
       let parsedApprovals = typeof approvals === "string" ? JSON.parse(approvals || "[]") : approvals;
@@ -76,6 +84,7 @@ export const createRequest = async (req, res) => {
       }
     }
 
+    // -------- PARSE ITEMS --------
     let itemsData = [];
     if (items) {
       let parsedItems = typeof items === "string" ? JSON.parse(items || "[]") : items;
@@ -92,6 +101,7 @@ export const createRequest = async (req, res) => {
       }
     }
 
+    // -------- CREATE REQUEST --------
     const newRequest = new Request({
       userId,
       staffName,
@@ -119,7 +129,7 @@ export const createRequest = async (req, res) => {
     // -------- GENERATE PDF BUFFER --------
     let pdfBuffer = null;
     try {
-      pdfBuffer = await generatePDFWithLogo(populatedRequest); // ✅ generate PDF dengan logo
+      pdfBuffer = await generateGenericPDF(populatedRequest);
       if (!Buffer.isBuffer(pdfBuffer)) pdfBuffer = null;
     } catch (pdfErr) {
       console.error("❌ PDF generate error:", pdfErr.message);
@@ -216,7 +226,7 @@ export const approveLevel = async (req, res) => {
 
     if (allApproved) {
       try {
-        const pdfBuffer = await generatePDFWithLogo(request); // ✅ gunakan PDF dengan logo
+        const pdfBuffer = await generateGenericPDF(request);
         const staffEmail = request.userId?.email;
         if (staffEmail) {
           await sendEmail({
@@ -283,6 +293,7 @@ export const assignTechnician = async (req, res) => {
     if (technician.role.toLowerCase() !== "technician")
       return res.status(400).json({ message: "User bukan technician" });
 
+    // ---------- Update Request ----------
     request.assignedTechnician = technicianId;
     request.maintenanceStatus = "Submitted";
     request.assignedAt = new Date();
@@ -290,34 +301,77 @@ export const assignTechnician = async (req, res) => {
     request.slaHours = priorityField.toLowerCase() === "urgent" ? 4 : 24;
     await request.save();
 
-    if (technician.email && technician.email.includes("@")) {
-      try {
-        const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
-        const pdfBuffer = await generatePDFWithLogo(request); // ✅ guna PDF dengan logo
+    // ---------- EMAIL NOTIFICATION ----------
+console.log("📧 Preparing to send email notification to technician...");
 
-        const html = `<div style="font-family: Arial; padding: 20px; color: #333;">
+// Ambil Issue / Location / Priority dari details jika ada, fallback ke default
+const issue = request.problemDescription || request.details?.issue || "Not Provided";
+const location = request.details?.location || "Not Provided";
+const priority = request.details?.priority || "Normal";
+const sla = request.slaHours || 24;
+const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleString() : "Not Assigned";
+
+if (technician.email && technician.email.includes("@")) {
+  try {
+    const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+    const pdfBuffer = await generateGenericPDF(request);
+
+    const html = `
+<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
   <h2 style="color: #1a73e8;">New Maintenance Task Assigned</h2>
   <p>Hello <strong>${technician.name}</strong>,</p>
   <p>You have been assigned a new maintenance request. Please review the details below and start the task as soon as possible.</p>
   <hr/>
-  <p><a href="${dashboardUrl}" style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Log Masuk Dashboard</a></p>
-</div>`;
+  <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Issue</td>
+      <td style="padding:6px 8px;">${issue}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Location</td>
+      <td style="padding:6px 8px;">${location}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Priority</td>
+      <td style="padding:6px 8px;">${priority}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">SLA</td>
+      <td style="padding:6px 8px;">${sla} hours</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Assigned At</td>
+      <td style="padding:6px 8px;">${assignedAt}</td>
+    </tr>
+  </table>
+  <p>
+    <a href="${dashboardUrl}" style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Log Masuk Dashboard</a>
+  </p>
+  <p style="font-size:12px;color:gray;">
+    This is an automated message from E-Approval System.
+  </p>
+</div>
+`;
 
-        await sendEmail({
-          to: technician.email,
-          subject: `New Maintenance Task Assigned`,
-          html,
-          attachments: pdfBuffer ? [{ filename: `Request_${request._id}.pdf`, content: pdfBuffer }] : [],
-        });
-      } catch (emailErr) {
-        console.error("❌ FAILED: Email sending error", emailErr.message);
-      }
-    }
-
-    res.status(200).json({
-      message: "Technician assigned successfully.",
-      request,
+    await sendEmail({
+      to: technician.email,
+      subject: `New Maintenance Task Assigned - ${issue}`,
+      html,
+      attachments: pdfBuffer ? [{ filename: `Request_${request._id}.pdf`, content: pdfBuffer }] : [],
     });
+
+    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+  } catch (emailErr) {
+    console.error("❌ FAILED: Email sending error", emailErr.message);
+  }
+} else {
+  console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+}
+
+res.status(200).json({
+  message: "Technician assigned successfully.",
+  request,
+});
 
   } catch (err) {
     console.error("❌ Error assign technician:", err);
@@ -369,7 +423,7 @@ export const downloadGenericPDF = async (req, res) => {
     const { id } = req.params;
     const request = await Request.findById(id).populate("approvals userId");
     if (!request) return res.status(404).json({ message: "Request tak jumpa" });
-    const pdfBytes = await generatePDFWithLogo(request); // ✅ guna PDF dengan logo
+    const pdfBytes = await generateGenericPDF(request);
     res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=Request_${id}.pdf` });
     res.send(pdfBytes);
   } catch (err) {
@@ -377,3 +431,4 @@ export const downloadGenericPDF = async (req, res) => {
     res.status(500).json({ message: "Gagal download PDF", error: err.message });
   }
 };
+
