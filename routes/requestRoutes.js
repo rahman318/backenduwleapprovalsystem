@@ -291,22 +291,36 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
     // ================== EMAIL NOTIFICATION FIXED ==================
 console.log("📧 Preparing to send email notification to technician...");
 
-// Ambil semua field sama dengan PDF logic
+// Parse details jika ia string
+let detailsObj = {};
+if (request.details) {
+  try {
+    detailsObj =
+      typeof request.details === "string"
+        ? JSON.parse(request.details)
+        : request.details;
+  } catch (parseErr) {
+    console.warn("⚠️ Failed to parse request.details:", parseErr.message);
+    detailsObj = {};
+  }
+}
+
+// Ambil semua field sama dengan PDF / MongoDB
 const issue =
-  request.problemDescription ||          // jika ada description utama
-  request.details?.issue ||             // jika simpan dalam details object
-  request.requestType ||                // fallback ke requestType
+  request.problemDescription ||        // jika ada description utama
+  detailsObj.issue ||                  // jika ada dalam details
+  request.requestType ||               // fallback
   "Not Provided";
 
 const location =
-  request.details?.location ||          // jika dalam details object
-  request.requestLocation ||            // jika simpan direct field
-  request.location ||                   // legacy field
+  detailsObj.location ||               // kalau dalam details
+  request.requestLocation ||           // kalau ada direct field
+  request.location ||                  // legacy
   "Not Provided";
 
 const priority =
-  request.details?.priority ||          // jika ada dalam details
-  request.priority ||                   // fallback field
+  detailsObj.priority ||               // kalau ada dalam details
+  request.priority ||                  // fallback field
   "Normal";
 
 const sla = request.slaHours || 24;
@@ -314,6 +328,7 @@ const assignedAt = request.assignedAt
   ? new Date(request.assignedAt).toLocaleString()
   : "Not Assigned";
 
+// Hantar email
 if (technician.email && technician.email.includes("@")) {
   try {
     const dashboardUrl =
@@ -382,5 +397,3 @@ if (technician.email && technician.email.includes("@")) {
 
 // ================== EXPORT ROUTER ==================
 export default router;
-
-
