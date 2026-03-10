@@ -416,3 +416,16 @@ export const downloadPDF = async (req, res) => {
     res.status(500).json({ message: "Gagal download PDF", error: err.message });
   }
 };
+// ================== EXPORT ALL ==================
+export {
+  upload,
+  createRequest,
+  getRequests,
+  getRequestsForTechnician,
+  approveLevel,
+  rejectLevel,
+  assignTechnician,
+  technicianUpdateStatus,
+  downloadGenericPDF,
+  deleteRequestById,
+};
