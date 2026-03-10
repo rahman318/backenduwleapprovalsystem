@@ -330,6 +330,11 @@ export const assignTechnician = async (req, res) => {
     await request.save();
 
     // ================== EMAIL NOTIFICATION ==================
+    console.log("Request object:", request);
+    console.log("Issue:", request.issue);
+    console.log("Location:", request.location);
+    console.log("Priority:", request.priority);
+    console.log("SLA:", request.slaHours);
     console.log("📧 Preparing to send email notification...");
     console.log("Technician object:", technician);
     console.log("Technician email:", JSON.stringify(technician.email));
@@ -343,21 +348,23 @@ export const assignTechnician = async (req, res) => {
         await sendEmail({
           to: technician.email,
           subject: "New Maintenance Task Assigned - E-Approval System",
-          html: `
-            <div style="font-family: Arial; padding: 15px;">
-              <h2>Hello ${technician.name},</h2>
-              <p>You have been assigned a new maintenance request.</p>
-              <hr/>
-              <p><strong>Issue:</strong> ${request.issue}</p>
-              <p><strong>Location:</strong> ${request.location}</p>
-              <p><strong>Priority:</strong> ${request.priority}</p>
-              <p><strong>SLA:</strong> ${request.slaHours} hours</p>
-              <br/>
-              <p>Please login to the system to start the task.</p>
-              <br/>
-              <p style="font-size:12px;color:gray;">This is an automated message from E-Approval System.</p>
-            </div>
-          `
+         html: `
+<div style="font-family: Arial; padding: 15px;">
+  <h2>Hello ${technician.name},</h2>
+  <p>You have been assigned a new maintenance request.</p>
+  <hr/>
+  <p><strong>Issue:</strong> ${request.issueDescription}</p>
+  <p><strong>Location:</strong> ${request.location}</p>
+  <p><strong>Priority:</strong> ${request.priority}</p>
+  <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+  <br/>
+  <p>Please login to the system to start the task.</p>
+  <br/>
+  <p style="font-size:12px;color:gray;">
+  This is an automated message from E-Approval System.
+  </p>
+</div>
+`
         });
 
         console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
@@ -444,4 +451,5 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
