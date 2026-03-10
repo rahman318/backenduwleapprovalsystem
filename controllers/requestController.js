@@ -330,60 +330,59 @@ export const assignTechnician = async (req, res) => {
     await request.save();
 
     // ================== EMAIL NOTIFICATION ==================
-    console.log("Request object:", request);
-    console.log("Issue:", request.issue);
-    console.log("Location:", request.location);
-    console.log("Priority:", request.priority);
-    console.log("SLA:", request.slaHours);
-    console.log("📧 Preparing to send email notification...");
-    console.log("Technician object:", technician);
-    console.log("Technician email:", JSON.stringify(technician.email));
+try {
+  console.log("📧 Preparing to send email notification...");
 
-    if (!technician.email || !technician.email.includes("@")) {
-      console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
-    } else {
-      try {
-        console.log(`📨 Attempting to send email to: ${technician.email}`);
+  // Pastikan request object full data
+  console.log("========= REQUEST DEBUG =========");
+  console.log("Problem/Issue:", request.problemDescription || request.issueDescription || request.issue);
+  console.log("Location:", request.location || request.requestLocation);
+  console.log("Priority:", request.priority || request.priorityLevel);
+  console.log("SLA:", request.slaHours);
+  console.log("FULL REQUEST OBJECT:", JSON.stringify(request, null, 2));
+  console.log("=================================");
 
-        await sendEmail({
-          to: technician.email,
-          subject: "New Maintenance Task Assigned - E-Approval System",
-         html: `
+  // Pastikan technician ada email valid
+  if (!technician.email || !technician.email.includes("@")) {
+    console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+  } else {
+    console.log(`📨 Attempting to send email to: ${technician.email}`);
+
+    // Kirim email
+    await sendEmail({
+      to: technician.email,
+      subject: "New Maintenance Task Assigned - E-Approval System",
+      html: `
 <div style="font-family: Arial; padding: 15px;">
   <h2>Hello ${technician.name},</h2>
   <p>You have been assigned a new maintenance request.</p>
   <hr/>
-  <p><strong>Issue:</strong> ${request.problemDescription}</p>
-  <p><strong>Location:</strong> ${request.location}</p>
-  <p><strong>Priority:</strong> ${request.priority}</p>
-  <p><strong>SLA:</strong> ${request.slaHours} hours</p>
+  <p><strong>Issue:</strong> ${request.problemDescription || request.issueDescription || request.issue || "Not Provided"}</p>
+  <p><strong>Location:</strong> ${request.location || request.requestLocation || "Not Provided"}</p>
+  <p><strong>Priority:</strong> ${request.priority || request.priorityLevel || "Not Provided"}</p>
+  <p><strong>SLA:</strong> ${request.slaHours || 24} hours</p>
   <br/>
   <p>Please login to the system to start the task.</p>
   <br/>
   <p style="font-size:12px;color:gray;">
-  This is an automated message from E-Approval System.
+    This is an automated message from E-Approval System.
   </p>
 </div>
-`
-        });
-
-        console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
-      } catch (emailError) {
-        console.error("❌ FAILED: Email sending error");
-        console.error(emailError.response?.data || emailError.message);
-      }
-    }
-
-    res.status(200).json({
-      message: "Technician assigned successfully.",
-      request,
+      `
     });
-  } catch (err) {
-    console.error("❌ Error assign technician:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
 
+    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+  }
+
+  res.status(200).json({
+    message: "Technician assigned successfully.",
+    request,
+  });
+
+} catch (err) {
+  console.error("❌ Error assign technician:", err);
+  res.status(500).json({ message: "Server error", error: err.message });
+}
 // ================== TECHNICIAN UPDATE STATUS ==================
 export const technicianUpdateStatus = async (req, res) => {
   try {
@@ -451,6 +450,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
