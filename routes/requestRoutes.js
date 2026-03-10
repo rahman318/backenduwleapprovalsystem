@@ -266,12 +266,10 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "TechnicianId diperlukan" });
     }
 
-    // ✅ Only Approver allowed
     if (user.role.toLowerCase() !== "approver") {
       return res.status(403).json({ message: "Hanya Approver boleh assign." });
     }
 
-    // ================== GET REQUEST & TECHNICIAN ==================
     const request = await Request.findById(id).exec();
     if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
@@ -282,46 +280,28 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "User bukan technician" });
     }
 
-    // ================== UPDATE REQUEST ==================
     request.assignedTechnician = technician._id;
     request.slaHours = request.priority === "Urgent" ? 4 : 24;
     request.finalStatus = "Approved";
     request.maintenanceStatus = "Submitted";
+    request.assignedAt = new Date(); // tambah assignedAt supaya email ada tarikh
 
     await request.save();
 
-    // ================== PARSE DETAILS FOR EMAIL ==================
-    const parsedDetails = {
-      technician: {
-        name: technician.name || "N/A",
-        email: technician.email || "N/A",
-        role: technician.role || "N/A",
-      },
-      request: {
-        issueType: request.issueType || "N/A",
-        location: request.location || "N/A",
-        priority: request.priority || "N/A",
-        slaHours: request.slaHours,
-        maintenanceStatus: request.maintenanceStatus || "Pending",
-      }
-    };
+    // ================== EMAIL NOTIFICATION ==================
+    console.log("📧 Preparing to send email notification to technician...");
 
-    // ---------- EMAIL NOTIFICATION ----------
-console.log("📧 Preparing to send email notification to technician...");
+    const issue = request.problemDescription || request.details?.issue || "Not Provided";
+    const location = request.details?.location || "Not Provided";
+    const priority = request.priority || "Normal";
+    const sla = request.slaHours || 24;
+    const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleString() : "Not Assigned";
 
-// Ambil Issue / Location / Priority dari details jika ada, fallback ke default
-const issue = request.problemDescription || request.details?.issue || "Not Provided";
-const location = request.details?.location || "Not Provided";
-const priority = request.details?.priority || "Normal";
-const sla = request.slaHours || 24;
-const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleString() : "Not Assigned";
+    if (technician.email && technician.email.includes("@")) {
+      try {
+        const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
 
-if (technician.email && technician.email.includes("@")) {
-  try {
-    const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
-    const pdfBuffer = await generateGenericPDF(request);
-
-    const html = `
+        const html = `
 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
   <h2 style="color: #1a73e8;">New Maintenance Task Assigned</h2>
   <p>Hello <strong>${technician.name}</strong>,</p>
@@ -356,26 +336,31 @@ if (technician.email && technician.email.includes("@")) {
     This is an automated message from E-Approval System.
   </p>
 </div>
-`;
+        `;
 
-    await sendEmail({
-      to: technician.email,
-      subject: `New Maintenance Task Assigned - ${issue}`,
-      html,
-      attachments: pdfBuffer ? [{ filename: `Request_${request._id}.pdf`, content: pdfBuffer }] : [],
+        await sendEmail({
+          to: technician.email,
+          subject: `New Maintenance Task Assigned - ${issue}`,
+          html,
+        });
+
+        console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+      } catch (emailErr) {
+        console.error("❌ FAILED: Email sending error", emailErr.message);
+      }
+    } else {
+      console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+    }
+
+    res.status(200).json({
+      message: "Technician assigned successfully.",
+      request,
     });
-
-    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
-  } catch (emailErr) {
-    console.error("❌ FAILED: Email sending error", emailErr.message);
+  } catch (err) {
+    console.error("❌ Error assign technician:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
-} else {
-  console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
-}
-
-res.status(200).json({
-  message: "Technician assigned successfully.",
-  request,
 });
 
+// ================== EXPORT ROUTER ==================
 export default router;
