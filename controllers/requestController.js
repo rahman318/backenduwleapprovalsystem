@@ -301,14 +301,21 @@ export const assignTechnician = async (req, res) => {
     await request.save();
 
     // ---------- EMAIL NOTIFICATION ----------
-    console.log("📧 Preparing to send email notification to technician...");
+console.log("📧 Preparing to send email notification to technician...");
 
-    if (technician.email && technician.email.includes("@")) {
-      try {
-        const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
-        const pdfBuffer = await generateGenericPDF(request);
+// Ambil Issue / Location / Priority dari details jika ada, fallback ke default
+const issue = request.problemDescription || request.details?.issue || "Not Provided";
+const location = request.details?.location || "Not Provided";
+const priority = request.details?.priority || "Normal";
+const sla = request.slaHours || 24;
+const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleString() : "Not Assigned";
 
-        const html = `
+if (technician.email && technician.email.includes("@")) {
+  try {
+    const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+    const pdfBuffer = await generateGenericPDF(request);
+
+    const html = `
 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
   <h2 style="color: #1a73e8;">New Maintenance Task Assigned</h2>
   <p>Hello <strong>${technician.name}</strong>,</p>
@@ -317,23 +324,23 @@ export const assignTechnician = async (req, res) => {
   <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
     <tr>
       <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Issue</td>
-      <td style="padding:6px 8px;">${request.problemDescription || request.details || "Not Provided"}</td>
+      <td style="padding:6px 8px;">${issue}</td>
     </tr>
     <tr>
       <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Location</td>
-      <td style="padding:6px 8px;">${request.location || request.requestLocation || "Not Provided"}</td>
+      <td style="padding:6px 8px;">${location}</td>
     </tr>
     <tr>
       <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Priority</td>
-      <td style="padding:6px 8px;">${request.priority || request.priorityLevel || "Normal"}</td>
+      <td style="padding:6px 8px;">${priority}</td>
     </tr>
     <tr>
       <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">SLA</td>
-      <td style="padding:6px 8px;">${request.slaHours} hours</td>
+      <td style="padding:6px 8px;">${sla} hours</td>
     </tr>
     <tr>
       <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Assigned At</td>
-      <td style="padding:6px 8px;">${request.assignedAt.toLocaleString()}</td>
+      <td style="padding:6px 8px;">${assignedAt}</td>
     </tr>
   </table>
   <p>
@@ -345,25 +352,25 @@ export const assignTechnician = async (req, res) => {
 </div>
 `;
 
-        await sendEmail({
-          to: technician.email,
-          subject: `New Maintenance Task Assigned - ${request.problemDescription || "No Issue"}`,
-          html,
-          attachments: pdfBuffer ? [{ filename: `Request_${request._id}.pdf`, content: pdfBuffer }] : [],
-        });
-
-        console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
-      } catch (emailErr) {
-        console.error("❌ FAILED: Email sending error", emailErr.message);
-      }
-    } else {
-      console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
-    }
-
-    res.status(200).json({
-      message: "Technician assigned successfully.",
-      request,
+    await sendEmail({
+      to: technician.email,
+      subject: `New Maintenance Task Assigned - ${issue}`,
+      html,
+      attachments: pdfBuffer ? [{ filename: `Request_${request._id}.pdf`, content: pdfBuffer }] : [],
     });
+
+    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+  } catch (emailErr) {
+    console.error("❌ FAILED: Email sending error", emailErr.message);
+  }
+} else {
+  console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+}
+
+res.status(200).json({
+  message: "Technician assigned successfully.",
+  request,
+});
 
   } catch (err) {
     console.error("❌ Error assign technician:", err);
@@ -423,3 +430,4 @@ export const downloadGenericPDF = async (req, res) => {
     res.status(500).json({ message: "Gagal download PDF", error: err.message });
   }
 };
+
