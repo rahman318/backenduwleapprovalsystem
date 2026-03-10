@@ -107,7 +107,7 @@ export const createRequest = async (req, res) => {
       staffDepartment: staffDepartment || "-",
       requestType,
       details: details || "",
-      problemDescription: problemDescription || "", // ✅ default kosong kalau frontend tak hantar
+      problemDescription: problemDescription || "",
       signatureStaff: signatureStaff || "",
       attachments: attachmentsData,
       leaveStart: requestType === "Cuti" ? leaveStart : undefined,
@@ -238,34 +238,6 @@ export const approveLevel = async (req, res) => {
       } catch (pdfErr) { console.error("❌ Error generate/send final PDF/email:", pdfErr.message); }
     }
 
-// ================== SEND EMAIL TO STAFF ==================
-    if (allApproved && request.staffEmail) {
-      const html = `
-        <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-          <h2 style="color: #1a73e8;">Permohonan Anda Telah Diluluskan</h2>
-          <p>Hi <strong>${request.staffName}</strong>,</p>
-          <p>Permohonan anda telah diluluskan oleh semua approver.</p>
-          <p>Butiran permohonan:</p>
-          <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
-            <tr><td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Jenis Permohonan</td><td style="padding:6px 8px;">${request.requestType}</td></tr>
-            <tr><td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Butiran</td><td style="padding:6px 8px;">${request.details || "-"}</td></tr>
-          </table>
-          <p>Sila semak attachment PDF untuk dokumen rasmi.</p>
-        </div>
-      `;
-
-      try {
-        await sendEmail({
-          to: request.staffEmail,
-          subject: `Permohonan Anda Telah Diluluskan: ${request.requestType}`,
-          html,
-          attachments: pdfBuffer ? [{ filename: `Permohonan_${request._id}.pdf`, content: pdfBuffer }] : []
-        });
-      } catch (emailErr) {
-        console.error("❌ Gagal hantar email ke staff:", emailErr.message);
-      }
-    }
-    
     await request.save();
     res.status(200).json({ message: "Level approved successfully", request });
 
@@ -317,72 +289,88 @@ export const assignTechnician = async (req, res) => {
     const technician = await User.findById(technicianId);
     if (!technician)
       return res.status(404).json({ message: "Technician tidak dijumpai" });
-
     if (technician.role.toLowerCase() !== "technician")
       return res.status(400).json({ message: "User bukan technician" });
 
-    // ✅ Update Request
+    // ---------- Update Request ----------
     request.assignedTechnician = technicianId;
     request.maintenanceStatus = "Submitted";
-    request.assignedAt = new Date();      // ✅ FIX: set assignedAt
-    request.slaHours = request.priority === "Urgent" ? 4 : 24;
-
+    request.assignedAt = new Date();
+    const priorityField = request.priority || request.priorityLevel || "Normal";
+    request.slaHours = priorityField.toLowerCase() === "urgent" ? 4 : 24;
     await request.save();
 
-    // ================== EMAIL NOTIFICATION ==================
-try {
-  console.log("📧 Preparing to send email notification...");
+    // ---------- EMAIL NOTIFICATION ----------
+    console.log("📧 Preparing to send email notification to technician...");
 
-  // Pastikan request object full data
-  console.log("========= REQUEST DEBUG =========");
-  console.log("Problem/Issue:", request.problemDescription || request.issueDescription || request.issue);
-  console.log("Location:", request.location || request.requestLocation);
-  console.log("Priority:", request.priority || request.priorityLevel);
-  console.log("SLA:", request.slaHours);
-  console.log("FULL REQUEST OBJECT:", JSON.stringify(request, null, 2));
-  console.log("=================================");
+    if (technician.email && technician.email.includes("@")) {
+      try {
+        const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+        const pdfBuffer = await generateGenericPDF(request);
 
-  // Pastikan technician ada email valid
-  if (!technician.email || !technician.email.includes("@")) {
-    console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
-  } else {
-    console.log(`📨 Attempting to send email to: ${technician.email}`);
-
-    // Kirim email
-    await sendEmail({
-      to: technician.email,
-      subject: "New Maintenance Task Assigned - E-Approval System",
-      html: `
-<div style="font-family: Arial; padding: 15px;">
-  <h2>Hello ${technician.name},</h2>
-  <p>You have been assigned a new maintenance request.</p>
+        const html = `
+<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+  <h2 style="color: #1a73e8;">New Maintenance Task Assigned</h2>
+  <p>Hello <strong>${technician.name}</strong>,</p>
+  <p>You have been assigned a new maintenance request. Please review the details below and start the task as soon as possible.</p>
   <hr/>
-  <p><strong>Issue:</strong> ${request.problemDescription || request.issueDescription || request.issue || "Not Provided"}</p>
-  <p><strong>Location:</strong> ${request.location || request.requestLocation || "Not Provided"}</p>
-  <p><strong>Priority:</strong> ${request.priority || request.priorityLevel || "Not Provided"}</p>
-  <p><strong>SLA:</strong> ${request.slaHours || 24} hours</p>
-  <br/>
-  <p>Please login to the system to start the task.</p>
-  <br/>
+  <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Issue</td>
+      <td style="padding:6px 8px;">${request.problemDescription || request.details || "Not Provided"}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Location</td>
+      <td style="padding:6px 8px;">${request.location || request.requestLocation || "Not Provided"}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Priority</td>
+      <td style="padding:6px 8px;">${request.priority || request.priorityLevel || "Normal"}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">SLA</td>
+      <td style="padding:6px 8px;">${request.slaHours} hours</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Assigned At</td>
+      <td style="padding:6px 8px;">${request.assignedAt.toLocaleString()}</td>
+    </tr>
+  </table>
+  <p>
+    <a href="${dashboardUrl}" style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Log Masuk Dashboard</a>
+  </p>
   <p style="font-size:12px;color:gray;">
     This is an automated message from E-Approval System.
   </p>
 </div>
-      `
+`;
+
+        await sendEmail({
+          to: technician.email,
+          subject: `New Maintenance Task Assigned - ${request.problemDescription || "No Issue"}`,
+          html,
+          attachments: pdfBuffer ? [{ filename: `Request_${request._id}.pdf`, content: pdfBuffer }] : [],
+        });
+
+        console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+      } catch (emailErr) {
+        console.error("❌ FAILED: Email sending error", emailErr.message);
+      }
+    } else {
+      console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+    }
+
+    res.status(200).json({
+      message: "Technician assigned successfully.",
+      request,
     });
 
-    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+  } catch (err) {
+    console.error("❌ Error assign technician:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
-
-  res.status(200).json({
-    message: "Technician assigned successfully.",
-    request,
-  });
-
-} catch (err) {
-  console.error("❌ Error assign technician:", err);
-  res.status(500).json({ message: "Server error", error: err.message });
 };
+
 // ================== TECHNICIAN UPDATE STATUS ==================
 export const technicianUpdateStatus = async (req, res) => {
   try {
@@ -400,7 +388,7 @@ export const technicianUpdateStatus = async (req, res) => {
 
     if (status === "In Progress") {
       request.maintenanceStatus = "In Progress";
-      if (!request.assignedAt) request.assignedAt = new Date(); // ✅ fallback assignedAt
+      if (!request.assignedAt) request.assignedAt = new Date();
       request.startedAt = new Date();
     } else if (status === "Completed") {
       request.maintenanceStatus = "Completed";
@@ -409,12 +397,12 @@ export const technicianUpdateStatus = async (req, res) => {
 
       if (request.startedAt) {
         const durationMs = request.completedAt - request.startedAt;
-        request.timeToComplete = Math.round(durationMs / 60000); // minit
+        request.timeToComplete = Math.round(durationMs / 60000);
       }
     }
 
     await request.save();
-    res.status(200).json({ message: `Request updated to ${status}`, request }); // ✅ return full request
+    res.status(200).json({ message: `Request updated to ${status}`, request });
   } catch (err) {
     console.error("❌ Technician update error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -429,29 +417,9 @@ export const downloadGenericPDF = async (req, res) => {
     if (!request) return res.status(404).json({ message: "Request tak jumpa" });
     const pdfBytes = await generateGenericPDF(request);
     res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=Request_${id}.pdf` });
-    res.send(Buffer.from(pdfBytes));
+    res.send(pdfBytes);
   } catch (err) {
-    console.error("❌ Generic PDF error:", err);
-    res.status(500).json({ message: "Gagal jana PDF" });
+    console.error("❌ Download PDF error:", err.message);
+    res.status(500).json({ message: "Gagal download PDF", error: err.message });
   }
 };
-
-export const downloadPurchasePDF = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const request = await Request.findById(id).populate("approvals userId");
-    if (!request) return res.status(404).json({ message: "Request tak jumpa" });
-    const pdfBytes = await generatePDF(request);
-    res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=Purchase_${id}.pdf` });
-    res.send(Buffer.from(pdfBytes));
-  } catch (err) {
-    console.error("❌ Purchase PDF error:", err);
-    res.status(500).json({ message: "Gagal jana PDF" });
-  }
-
-};
-
-
-
-
-
