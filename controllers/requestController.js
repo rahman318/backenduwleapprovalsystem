@@ -382,7 +382,7 @@ try {
 } catch (err) {
   console.error("❌ Error assign technician:", err);
   res.status(500).json({ message: "Server error", error: err.message });
-}
+};
 // ================== TECHNICIAN UPDATE STATUS ==================
 export const technicianUpdateStatus = async (req, res) => {
   try {
@@ -450,6 +450,7 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
 
