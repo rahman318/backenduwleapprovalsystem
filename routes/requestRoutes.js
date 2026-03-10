@@ -306,55 +306,76 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
       }
     };
 
-    // ================== EMAIL NOTIFICATION ==================
-    console.log("📧 Preparing to send email notification...");
-    console.log("Technician email:", parsedDetails.technician.email);
+    // ---------- EMAIL NOTIFICATION ----------
+console.log("📧 Preparing to send email notification to technician...");
 
-    if (!parsedDetails.technician.email || !parsedDetails.technician.email.includes("@")) {
-      console.warn("⚠️ Invalid technician email. Email not sent.");
-    } else {
-      try {
-        await sendEmail({
-          to: parsedDetails.technician.email,
-          subject: "New Maintenance Task Assigned - E-Approval System",
-          html: `
-<div style="font-family: Arial; padding: 15px;">
-  <h2>Hello ${parsedDetails.technician.name},</h2>
-  <p>You have been assigned a new maintenance request.</p>
+// Ambil Issue / Location / Priority dari details jika ada, fallback ke default
+const issue = request.problemDescription || request.details?.issue || "Not Provided";
+const location = request.details?.location || "Not Provided";
+const priority = request.details?.priority || "Normal";
+const sla = request.slaHours || 24;
+const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleString() : "Not Assigned";
+
+if (technician.email && technician.email.includes("@")) {
+  try {
+    const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+    const pdfBuffer = await generateGenericPDF(request);
+
+    const html = `
+<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+  <h2 style="color: #1a73e8;">New Maintenance Task Assigned</h2>
+  <p>Hello <strong>${technician.name}</strong>,</p>
+  <p>You have been assigned a new maintenance request. Please review the details below and start the task as soon as possible.</p>
   <hr/>
-  <p><strong>Issue:</strong> ${parsedDetails.request.issueType}</p>
-  <p><strong>Location:</strong> ${parsedDetails.request.location}</p>
-  <p><strong>Priority:</strong> ${parsedDetails.request.priority}</p>
-  <p><strong>SLA:</strong> ${parsedDetails.request.slaHours} hours</p>
-  <p><strong>Status:</strong> ${parsedDetails.request.maintenanceStatus}</p>
-  <br/>
-  <p>Please login to the system to start the task.</p>
-  <br/>
+  <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Issue</td>
+      <td style="padding:6px 8px;">${issue}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Location</td>
+      <td style="padding:6px 8px;">${location}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Priority</td>
+      <td style="padding:6px 8px;">${priority}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">SLA</td>
+      <td style="padding:6px 8px;">${sla} hours</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Assigned At</td>
+      <td style="padding:6px 8px;">${assignedAt}</td>
+    </tr>
+  </table>
+  <p>
+    <a href="${dashboardUrl}" style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Log Masuk Dashboard</a>
+  </p>
   <p style="font-size:12px;color:gray;">
     This is an automated message from E-Approval System.
   </p>
 </div>
-          `
-        });
+`;
 
-        console.log("✅ Email sent successfully!");
-      } catch (emailError) {
-        console.error("❌ Email sending failed:", emailError.message);
-      }
-    }
+    await sendEmail({
+      to: technician.email,
+      subject: `New Maintenance Task Assigned - ${issue}`,
+      html,
+      attachments: pdfBuffer ? [{ filename: `Request_${request._id}.pdf`, content: pdfBuffer }] : [],
+    });
 
-    res.json({ message: "Technician assigned successfully!", request: parsedDetails.request });
-
-  } catch (error) {
-    console.error("❌ Error assigning technician:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+  } catch (emailErr) {
+    console.error("❌ FAILED: Email sending error", emailErr.message);
   }
+} else {
+  console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+}
+
+res.status(200).json({
+  message: "Technician assigned successfully.",
+  request,
 });
 
 export default router;
-
-
-
-
-
-
