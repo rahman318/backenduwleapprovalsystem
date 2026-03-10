@@ -288,24 +288,38 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 
     await request.save();
 
-    // ================== EMAIL NOTIFICATION ==================
-    console.log("📧 Preparing to send email notification to technician...");
+    // ================== EMAIL NOTIFICATION FIXED ==================
+console.log("📧 Preparing to send email notification to technician...");
 
-    const issue = request.problemDescription || request.details?.issue || "Not Provided";
-    const location =
-  request.details?.location ||       // kalau simpan dalam details object
-  request.requestLocation ||         // kalau simpan sebagai direct field
-  request.location ||                // kalau ada legacy field
+// Ambil semua field sama dengan PDF logic
+const issue =
+  request.problemDescription ||          // jika ada description utama
+  request.details?.issue ||             // jika simpan dalam details object
+  request.requestType ||                // fallback ke requestType
   "Not Provided";
-    const priority = request.priority || "Normal";
-    const sla = request.slaHours || 24;
-    const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleString() : "Not Assigned";
 
-    if (technician.email && technician.email.includes("@")) {
-      try {
-        const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+const location =
+  request.details?.location ||          // jika dalam details object
+  request.requestLocation ||            // jika simpan direct field
+  request.location ||                   // legacy field
+  "Not Provided";
 
-        const html = `
+const priority =
+  request.details?.priority ||          // jika ada dalam details
+  request.priority ||                   // fallback field
+  "Normal";
+
+const sla = request.slaHours || 24;
+const assignedAt = request.assignedAt
+  ? new Date(request.assignedAt).toLocaleString()
+  : "Not Assigned";
+
+if (technician.email && technician.email.includes("@")) {
+  try {
+    const dashboardUrl =
+      process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+
+    const html = `
 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
   <h2 style="color: #1a73e8;">New Maintenance Task Assigned</h2>
   <p>Hello <strong>${technician.name}</strong>,</p>
@@ -340,21 +354,21 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
     This is an automated message from E-Approval System.
   </p>
 </div>
-        `;
+    `;
 
-        await sendEmail({
-          to: technician.email,
-          subject: `New Maintenance Task Assigned - ${issue}`,
-          html,
-        });
+    await sendEmail({
+      to: technician.email,
+      subject: `New Maintenance Task Assigned - ${issue}`,
+      html,
+    });
 
-        console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
-      } catch (emailErr) {
-        console.error("❌ FAILED: Email sending error", emailErr.message);
-      }
-    } else {
-      console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
-    }
+    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+  } catch (emailErr) {
+    console.error("❌ FAILED: Email sending error", emailErr.message);
+  }
+} else {
+  console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+}
 
     res.status(200).json({
       message: "Technician assigned successfully.",
@@ -368,4 +382,5 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 
 // ================== EXPORT ROUTER ==================
 export default router;
+
 
