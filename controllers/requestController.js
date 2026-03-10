@@ -418,14 +418,6 @@ export const downloadPDF = async (req, res) => {
 };
 // ================== EXPORT ALL ==================
 export {
-  upload,
-  createRequest,
-  getRequests,
-  getRequestsForTechnician,
-  approveLevel,
-  rejectLevel,
-  assignTechnician,
-  technicianUpdateStatus,
-  downloadGenericPDF,
   deleteRequestById,
 };
+
