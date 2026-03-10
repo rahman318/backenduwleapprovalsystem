@@ -353,7 +353,7 @@ export const assignTechnician = async (req, res) => {
   <h2>Hello ${technician.name},</h2>
   <p>You have been assigned a new maintenance request.</p>
   <hr/>
-  <p><strong>Issue:</strong> ${request.issueDescription}</p>
+  <p><strong>Issue:</strong> ${request.problemDescription}</p>
   <p><strong>Location:</strong> ${request.location}</p>
   <p><strong>Priority:</strong> ${request.priority}</p>
   <p><strong>SLA:</strong> ${request.slaHours} hours</p>
@@ -451,5 +451,6 @@ export const downloadPurchasePDF = async (req, res) => {
   }
 
 };
+
 
 
