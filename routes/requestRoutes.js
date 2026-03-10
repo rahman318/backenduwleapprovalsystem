@@ -292,7 +292,11 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
     console.log("📧 Preparing to send email notification to technician...");
 
     const issue = request.problemDescription || request.details?.issue || "Not Provided";
-    const location = request.details?.location || "Not Provided";
+    const location =
+  request.details?.location ||       // kalau simpan dalam details object
+  request.requestLocation ||         // kalau simpan sebagai direct field
+  request.location ||                // kalau ada legacy field
+  "Not Provided";
     const priority = request.priority || "Normal";
     const sla = request.slaHours || 24;
     const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleString() : "Not Assigned";
@@ -364,3 +368,4 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 
 // ================== EXPORT ROUTER ==================
 export default router;
+
