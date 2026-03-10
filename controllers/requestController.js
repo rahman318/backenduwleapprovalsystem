@@ -129,7 +129,7 @@ export const createRequest = async (req, res) => {
     // -------- GENERATE PDF BUFFER --------
     let pdfBuffer = null;
     try {
-      pdfBuffer = await generatePDFFromDB(populatedRequest);
+      pdfBuffer = await generatePDFWithLogo(populatedRequest);
       if (!Buffer.isBuffer(pdfBuffer)) pdfBuffer = null;
     } catch (pdfErr) {
       console.error("❌ PDF generate error:", pdfErr.message);
@@ -226,7 +226,7 @@ export const approveLevel = async (req, res) => {
 
     if (allApproved) {
       try {
-        const pdfBuffer = await generatePDFFromDB(request);
+        const pdfBuffer = await generatePDFWithLogo(request);
         const staffEmail = request.userId?.email;
         if (staffEmail) {
           await sendEmail({
@@ -314,7 +314,7 @@ const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleStr
 if (technician.email && technician.email.includes("@")) {
   try {
     const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
-    const pdfBuffer = await generatePDFFromDB(request);
+    const pdfBuffer = await generatePDFWithLogo(request);
 
     const html = `
 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -423,7 +423,7 @@ export const downloadGenericPDF = async (req, res) => {
     const { id } = req.params;
     const request = await Request.findById(id).populate("approvals userId");
     if (!request) return res.status(404).json({ message: "Request tak jumpa" });
-    const pdfBytes = await generatePDFFromDB(request);
+    const pdfBytes = await generatePDFWithLogo(request);
     res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=Request_${id}.pdf` });
     res.send(pdfBytes);
   } catch (err) {
@@ -431,6 +431,7 @@ export const downloadGenericPDF = async (req, res) => {
     res.status(500).json({ message: "Gagal download PDF", error: err.message });
   }
 };
+
 
 
 
