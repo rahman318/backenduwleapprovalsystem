@@ -3,6 +3,22 @@ import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import Request from "../models/Requests.js";
 import fetch from "node-fetch"; // pastikan install node-fetch
 
+/* ================ Waktu Malaysia =========== */
+function formatDateTime(date) {
+  if (!date) return "-";
+  const d = new Date(date);
+  // adjust +8 jam untuk Malaysia
+  d.setHours(d.getHours() + 8);
+  return d.toLocaleString("ms-MY", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 /* ================= HELPERS ================= */
 function drawLineBelowText(page, y, startX = 50, endX = 545, offset = 5, thickness = 0.8) {
   page.drawLine({ start: { x: startX, y: y - offset }, end: { x: endX, y: y - offset }, thickness, color: rgb(0.6, 0.6, 0.6) });
@@ -161,3 +177,4 @@ export async function generatePDFWithLogo(requestId) {
 
   return await pdf.save({ useObjectStreams: false });
 }
+
