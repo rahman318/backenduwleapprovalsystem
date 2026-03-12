@@ -4,7 +4,6 @@ import User from "../models/user.js";
 import { sendEmail } from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generateGenericPDF } from "../utils/generateGenericPDF.js";
-import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
 import generatePDF from "../utils/generatePDF.js";
 import multer from "multer";
 
@@ -431,3 +430,4 @@ export const downloadGenericPDF = async (req, res) => {
     res.status(500).json({ message: "Gagal download PDF", error: err.message });
   }
 };
+
