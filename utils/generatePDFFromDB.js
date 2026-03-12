@@ -1,8 +1,7 @@
 // utils/generatePDFWithLogo.js
-import fs from "fs";
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import Request from "../models/Requests.js";
-import fetch from "node-fetch"; // pastikan install node-fetch untuk fetch image
+import fetch from "node-fetch"; // npm install node-fetch
 
 /* ================= HELPERS ================= */
 function drawLineBelowText(page, y, startX = 50, endX = 545, offset = 5, thickness = 0.8) {
@@ -46,11 +45,10 @@ export async function generatePDFWithLogo(requestId) {
 
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595, 842]);
-
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  const margin = 50;
+  let margin = 50;
   let y = 800;
 
   /* ========== HEADER ========== */
@@ -63,7 +61,7 @@ export async function generatePDFWithLogo(requestId) {
   drawLineBelowText(page, y, margin, 545, 7, 1.2);
   y -= 30;
 
-  /* ========== INFO ========== */
+  /* ========== BASIC INFO ========== */
   page.drawText(`Nama Staff: ${request.staffName ?? "-"}`, { x: margin, y, size: 11, font });
   y -= 16;
   page.drawText(`Tarikh Permohonan: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString("ms-MY") : "-"}`, { x: margin, y, size: 11, font });
@@ -73,13 +71,13 @@ export async function generatePDFWithLogo(requestId) {
   page.drawText(`Jenis Permohonan: ${request.requestType ?? "-"}`, { x: margin, y, size: 11, font });
   y -= 25;
 
-  /* ========== DETAILS ========== */
+  /* ========== REQUEST DETAILS ========== */
   page.drawText("Butiran Permohonan:", { x: margin, y, size: 12, font: bold });
   drawLineBelowText(page, y, margin, 545, 4);
   y -= 18;
 
+  // ===== PEMBELIAN =====
   if (request.requestType === "PEMBELIAN" && Array.isArray(request.items) && request.items.length) {
-    // ===== PEMBELIAN =====
     const headers = ["Nama Item", "Qty", "Harga (RM)", "Pembekal", "Tujuan"];
     const colWidths = [150, 40, 70, 120, 140];
     let startX = margin;
@@ -90,7 +88,7 @@ export async function generatePDFWithLogo(requestId) {
     });
     y -= 16;
 
-    request.items.forEach((item) => {
+    request.items.forEach(item => {
       let x = margin;
       page.drawText(item.itemName || "-", { x, y, size: 10, font });
       x += colWidths[0];
@@ -105,50 +103,38 @@ export async function generatePDFWithLogo(requestId) {
     });
 
   } else if (request.requestType === "CUTI") {
-    // ===== CUTI =====
-    let leaveDetailsObj = {};
+    let leaveDetails = {};
     try {
-      if (request.leaveDetails) {
-        leaveDetailsObj = typeof request.leaveDetails === "string" ? JSON.parse(request.leaveDetails) : request.leaveDetails;
-      } else if (request.details) {
-        leaveDetailsObj = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
-      }
-    } catch (e) {
-      console.log("Gagal parse leaveDetails:", e);
-    }
+      leaveDetails = request.leaveDetails
+        ? (typeof request.leaveDetails === "string" ? JSON.parse(request.leaveDetails) : request.leaveDetails)
+        : (typeof request.details === "string" ? JSON.parse(request.details) : request.details || {});
+    } catch (e) { console.log("Gagal parse leaveDetails:", e); }
 
-    for (const [key, value] of Object.entries(leaveDetailsObj)) {
+    for (const [key, value] of Object.entries(leaveDetails)) {
       page.drawText(`${key}:`, { x: margin, y, size: 11, font: bold });
       page.drawText(String(value ?? "-"), { x: margin + 160, y, size: 11, font });
       y -= 16;
     }
 
   } else if (request.requestType === "IT_SUPPORT") {
-    // ===== IT SUPPORT =====
-    let itDetailsObj = {};
+    let itDetails = {};
     try {
-      if (request.itDetails) {
-        itDetailsObj = typeof request.itDetails === "string" ? JSON.parse(request.itDetails) : request.itDetails;
-      } else if (request.details) {
-        itDetailsObj = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
-      }
-    } catch (e) {
-      console.log("Gagal parse IT details:", e);
-    }
+      itDetails = request.itDetails
+        ? (typeof request.itDetails === "string" ? JSON.parse(request.itDetails) : request.itDetails)
+        : (typeof request.details === "string" ? JSON.parse(request.details) : request.details || {});
+    } catch (e) { console.log("Gagal parse IT details:", e); }
 
-    for (const [key, value] of Object.entries(itDetailsObj)) {
+    for (const [key, value] of Object.entries(itDetails)) {
       page.drawText(`${key}:`, { x: margin, y, size: 11, font: bold });
       page.drawText(String(value ?? "-"), { x: margin + 160, y, size: 11, font });
       y -= 16;
     }
 
-  if (request.requestType === "Maintenance") {
+  } else if (request.requestType === "Maintenance") {
     let maintenanceDetails = {};
     try {
-      maintenanceDetails = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
-    } catch (e) {
-      console.log("Gagal parse Maintenance details:", e);
-    }
+      maintenanceDetails = typeof request.details === "string" ? JSON.parse(request.details) : request.details || {};
+    } catch (e) { console.log("Gagal parse Maintenance details:", e); }
 
     page.drawText(`Lokasi Kerosakan:`, { x: margin, y, size: 11, font: bold });
     page.drawText(`${maintenanceDetails.location ?? "-"}`, { x: margin + 160, y, size: 11, font });
@@ -170,39 +156,37 @@ export async function generatePDFWithLogo(requestId) {
   /* =============================== 
      TECHNICIAN REMARK & PROOF IMAGE
   ================================ */
-if (request.technicianRemark && request.technicianRemark.trim() !== "") {
-  page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
-  y -= 16;
-  page.drawText(request.technicianRemark, { x: margin + 10, y, size: 11, font });
-  y -= 25;
-}
-
-// ✅ embed proof image (PNG / JPEG) kalau ada
-if (request.proofImageUrl) {
-  try {
-    const resp = await fetch(request.proofImageUrl);
-    const buf = Buffer.from(await resp.arrayBuffer());
-
-    let img;
-    if (request.proofImageUrl.endsWith(".jpg") || request.proofImageUrl.endsWith(".jpeg") || request.proofImageUrl.includes("image/jpeg")) {
-      img = await pdf.embedJpg(buf);
-    } else if (request.proofImageUrl.endsWith(".png") || request.proofImageUrl.includes("image/png")) {
-      img = await pdf.embedPng(buf);
-    } else {
-      throw new Error("Unsupported image type, hanya PNG/JPEG sahaja");
-    }
-
-    const imgW = 200;
-    const imgH = (img.height / img.width) * imgW;
-    page.drawText("Proof of Work:", { x: margin, y: y, size: 10, font: bold });
-    y -= 14;
-    page.drawImage(img, { x: margin, y: y - imgH, width: imgW, height: imgH });
-    y -= imgH + 20;
-
-  } catch (err) {
-    console.warn("❌ Failed to embed proof image:", err.message);
+  if (request.technicianRemark?.trim()) {
+    page.drawText("Catatan Technician:", { x: margin, y, size: 12, font: bold });
+    y -= 16;
+    page.drawText(request.technicianRemark, { x: margin + 10, y, size: 11, font });
+    y -= 25;
   }
-}
+
+  if (request.proofImageUrl) {
+    try {
+      const resp = await fetch(request.proofImageUrl);
+      const buf = Buffer.from(await resp.arrayBuffer());
+      let img;
+
+      if (request.proofImageUrl.endsWith(".jpg") || request.proofImageUrl.endsWith(".jpeg") || request.proofImageUrl.includes("image/jpeg")) {
+        img = await pdf.embedJpg(buf);
+      } else if (request.proofImageUrl.endsWith(".png") || request.proofImageUrl.includes("image/png")) {
+        img = await pdf.embedPng(buf);
+      }
+
+      if (img) {
+        const imgW = 200;
+        const imgH = (img.height / img.width) * imgW;
+        page.drawText("Proof of Work:", { x: margin, y: y, size: 10, font: bold });
+        y -= 14;
+        page.drawImage(img, { x: margin, y: y - imgH, width: imgW, height: imgH });
+        y -= imgH + 20;
+      }
+    } catch (err) {
+      console.warn("❌ Failed to embed proof image:", err.message);
+    }
+  }
 
   /* ========== STATUS ========== */
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
@@ -222,7 +206,6 @@ if (request.proofImageUrl) {
 
   /* ========== SIGNATURES ========== */
   const sigStaffW = 180, sigStaffH = 60, sigAppW = 120, sigAppH = 50, gap = 20;
-
   page.drawText("Pemohon", { x: margin, y, size: 10, font: bold });
   page.drawLine({ start: { x: margin, y: y - sigStaffH - 2 }, end: { x: margin + sigStaffW, y: y - sigStaffH - 2 }, thickness: 1 });
   if (typeof request.signatureStaff === "string" && request.signatureStaff.includes(",")) {
@@ -231,8 +214,7 @@ if (request.proofImageUrl) {
   }
 
   let x = margin + sigStaffW + gap;
-  for (let i = 0; i < approvals.length; i++) {
-    const a = approvals[i];
+  approvals.forEach((a, i) => {
     page.drawText(`Level ${i + 1}`, { x, y, size: 9, font: bold });
     page.drawText(a?.approverName ?? "-", { x, y: y - 12, size: 9, font });
     page.drawText(`Status: ${a?.status ?? "-"}`, { x, y: y - 22, size: 8, font });
@@ -243,7 +225,7 @@ if (request.proofImageUrl) {
       page.drawImage(img, { x, y: y - sigAppH, width: sigAppW, height: sigAppH });
     }
     x += sigAppW + gap;
-  }
+  });
 
   /* ========== WATERMARK ========== */
   if (mainStatus !== "-") {
@@ -255,5 +237,3 @@ if (request.proofImageUrl) {
 
   return await pdf.save({ useObjectStreams: false });
 }
-
-
