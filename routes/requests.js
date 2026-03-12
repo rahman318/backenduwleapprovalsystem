@@ -7,6 +7,7 @@ import User from "../models/user.js";
 import sendEmail from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generatePDFWithLogo } from "../utils/generateGenericPDF.js";
+import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
 
 const router = express.Router();
 
@@ -294,6 +295,7 @@ router.get("/:id/pdf", async (req, res) => {
 
 
 export default router;
+
 
 
 
