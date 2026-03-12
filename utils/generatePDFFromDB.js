@@ -78,6 +78,70 @@ export async function generatePDFWithLogo(requestId) {
   drawLineBelowText(page, y, margin, 545, 4);
   y -= 18;
 
+  if (request.requestType === "PEMBELIAN" && Array.isArray(request.items) && request.items.length) {
+    // ===== PEMBELIAN =====
+    const headers = ["Nama Item", "Qty", "Harga (RM)", "Pembekal", "Tujuan"];
+    const colWidths = [150, 40, 70, 120, 140];
+    let startX = margin;
+
+    headers.forEach((h, i) => {
+      page.drawText(h, { x: startX, y, size: 10, font: bold });
+      startX += colWidths[i];
+    });
+    y -= 16;
+
+    request.items.forEach((item) => {
+      let x = margin;
+      page.drawText(item.itemName || "-", { x, y, size: 10, font });
+      x += colWidths[0];
+      page.drawText(`${item.quantity || 0}`, { x, y, size: 10, font });
+      x += colWidths[1];
+      page.drawText(`${item.estimatedCost || 0}`, { x, y, size: 10, font });
+      x += colWidths[2];
+      page.drawText(item.supplier || "-", { x, y, size: 10, font });
+      x += colWidths[3];
+      page.drawText(item.reason || "-", { x, y, size: 10, font });
+      y -= 16;
+    });
+
+  } else if (request.requestType === "CUTI") {
+    // ===== CUTI =====
+    let leaveDetailsObj = {};
+    try {
+      if (request.leaveDetails) {
+        leaveDetailsObj = typeof request.leaveDetails === "string" ? JSON.parse(request.leaveDetails) : request.leaveDetails;
+      } else if (request.details) {
+        leaveDetailsObj = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
+      }
+    } catch (e) {
+      console.log("Gagal parse leaveDetails:", e);
+    }
+
+    for (const [key, value] of Object.entries(leaveDetailsObj)) {
+      page.drawText(`${key}:`, { x: margin, y, size: 11, font: bold });
+      page.drawText(String(value ?? "-"), { x: margin + 160, y, size: 11, font });
+      y -= 16;
+    }
+
+  } else if (request.requestType === "IT_SUPPORT") {
+    // ===== IT SUPPORT =====
+    let itDetailsObj = {};
+    try {
+      if (request.itDetails) {
+        itDetailsObj = typeof request.itDetails === "string" ? JSON.parse(request.itDetails) : request.itDetails;
+      } else if (request.details) {
+        itDetailsObj = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
+      }
+    } catch (e) {
+      console.log("Gagal parse IT details:", e);
+    }
+
+    for (const [key, value] of Object.entries(itDetailsObj)) {
+      page.drawText(`${key}:`, { x: margin, y, size: 11, font: bold });
+      page.drawText(String(value ?? "-"), { x: margin + 160, y, size: 11, font });
+      y -= 16;
+    }
+
   if (request.requestType === "Maintenance") {
     let maintenanceDetails = {};
     try {
@@ -191,4 +255,5 @@ if (request.proofImageUrl) {
 
   return await pdf.save({ useObjectStreams: false });
 }
+
 
