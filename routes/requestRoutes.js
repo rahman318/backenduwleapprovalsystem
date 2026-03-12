@@ -7,7 +7,6 @@ import authMiddleware from "../Middleware/authMiddleware.js";
 import supabase from "../Middleware/supabase.js"; 
 import Request from "../models/Requests.js";
 import User from "../models/user.js";
-
 import {
   createRequest,
   getRequests,
@@ -397,3 +396,4 @@ if (technician.email && technician.email.includes("@")) {
 
 // ================== EXPORT ROUTER ==================
 export default router;
+
