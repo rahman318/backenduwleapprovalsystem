@@ -82,7 +82,7 @@ export async function generatePDFWithLogo(requestId) {
   let logoImage = null;
 
   try {
-    const logoBytes = fs.readFileSync("./assets/logo.png");
+    const logoBytes = fs.readFileSync("./assets/company logo.png");
     logoImage = await pdf.embedPng(logoBytes);
   } catch (err) {
     console.log("Logo tak jumpa bossskurrr");
@@ -419,3 +419,4 @@ export async function generatePDFWithLogo(requestId) {
 
   return await pdf.save({ useObjectStreams: false });
 }
+
