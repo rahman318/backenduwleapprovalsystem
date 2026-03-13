@@ -10,6 +10,7 @@ import usersRoutes from "./routes/userRoutes.js";
 import requestRoutes from "./routes/requestRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import testEmailRoutes from "./routes/testEmail.js";
+import verifyRoutes from "./routes/verifyRoutes.js";
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use("/api/users", usersRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
+app.use("/verify", verifyRoutes);
 
 // ==========================
 // ⚙️ DATABASE CONNECTION
@@ -64,6 +66,7 @@ connectDB();
 // ==========================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+
 
 
 
