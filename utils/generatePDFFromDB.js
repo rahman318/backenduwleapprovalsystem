@@ -167,7 +167,7 @@ export async function generatePDFWithLogo(requestId){
 
   // ===== QR CODE =====
   if(request.serialNumber){
-    const qrData=`https://system.company.com/verify/${request.serialNumber}`;
+    const qrData=`https://backenduwleapprovalsystem.onrender.com/verify/${request.serialNumber}`;
     const qrBase64=await QRCode.toDataURL(qrData);
     const qrImg=await embedPngFromBase64(pdf,qrBase64.split(",")[1]);
     page.drawImage(qrImg,{x:450,y:700,width:90,height:90});
@@ -179,4 +179,5 @@ export async function generatePDFWithLogo(requestId){
 
   return await pdf.save({useObjectStreams:false});
 }
+
 
