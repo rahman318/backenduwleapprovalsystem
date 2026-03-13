@@ -49,7 +49,7 @@ export async function generatePDFWithLogo(requestId){
 
   // ===== LOGO =====
   try{
-    const logoBytes=fs.readFileSync("./assets/logo.png");
+    const logoBytes=fs.readFileSync("./assets/company logo.png");
     const logo=await pdf.embedPng(logoBytes);
     const dims=logo.scaleToFit(60,60);
     page.drawImage(logo,{x:margin,y:y-20,width:dims.width,height:dims.height});
@@ -179,3 +179,4 @@ export async function generatePDFWithLogo(requestId){
 
   return await pdf.save({useObjectStreams:false});
 }
+
