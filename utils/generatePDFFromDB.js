@@ -35,6 +35,26 @@ function wrapText(text,maxLength=80){
   return lines;
 }
 
+function calculateTimeTaken(start, end){
+  if(!start || !end) return "-";
+
+  const diffMs = new Date(end) - new Date(start);
+  if(diffMs <= 0) return "-";
+
+  const minutes = Math.floor(diffMs / (1000 * 60));
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  const remainingHours = hours % 24;
+  const remainingMinutes = minutes % 60;
+
+  let result = "";
+  if(days) result += `${days} hari `;
+  if(remainingHours) result += `${remainingHours} jam `;
+  if(remainingMinutes) result += `${remainingMinutes} minit`;
+
+  return result || "0 minit";
+}
 /* ================= MAIN ================= */
 export async function generatePDFWithLogo(requestId){
   const request = await Request.findById(requestId).lean();
@@ -128,6 +148,20 @@ export async function generatePDFWithLogo(requestId){
     }catch(e){ console.log("Gagal load proof image"); }
   }
 
+// ===== TECHNICIAN COMPLETION INFO =====
+if(request.completedAt){
+  page.drawText("MAKLUMAT SIAP KERJA",{x:margin,y,size:12,font:bold});
+  drawLine(page,y-5);
+  y-=20;
+
+  page.drawText(`Tarikh Siap : ${formatDateTime(request.completedAt)}`,{x:margin,y,size:11,font});
+  y-=16;
+
+  const timeTaken = calculateTimeTaken(request.createdAt, request.completedAt);
+  page.drawText(`Tempoh Siap : ${timeTaken}`,{x:margin,y,size:11,font});
+  y-=25;
+}
+  
   // ===== STATUS =====
   const approvals=Array.isArray(request.approvals)?request.approvals:[];
   const statuses=approvals.map(a=>a.status?.toUpperCase()).filter(Boolean);
