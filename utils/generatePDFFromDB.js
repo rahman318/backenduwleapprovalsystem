@@ -97,7 +97,7 @@ export async function generatePDFWithLogo(requestId){
 
   // --- PEMBELIAN ---
   if(request.requestType==="PEMBELIAN" && Array.isArray(request.items)){
-    const headers=["Item","Qty","Harga (RM)","Supplier","Tujuan"];
+    const headers=["Item","Qty","Harga Seunit (RM)","Supplier","Tujuan"];
     const widths=[150,40,70,120,140];
     let x=margin; headers.forEach((h,i)=>{page.drawText(h,{x,y,size:10,font:bold}); x+=widths[i];}); y-=16;
     request.items.forEach(item=>{ let col=margin;
