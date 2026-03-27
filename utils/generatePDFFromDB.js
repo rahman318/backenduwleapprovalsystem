@@ -211,7 +211,8 @@ if(request.completedAt){
   // ===== FOOTER =====
   page.drawText("Dokumen ini dijana secara automatik oleh Sistem e-Approval",{x:margin,y:40,size:8,font,color:rgb(0.5,0.5,0.5)});
 
-  return await pdf.save({useObjectStreams:false});
+  const pdfBytes = await pdf.save({ useObjectStreams: false });
+return Buffer.from(pdfBytes);
 }
 
 
