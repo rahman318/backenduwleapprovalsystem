@@ -3,7 +3,7 @@ import Request from "../models/Requests.js";
 import User from "../models/user.js";
 import { sendEmail } from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
-import generateGenericPDF from "../utils/generateGenericPDF.js";
+import { generateGenericPDF } from "../utils/generateGenericPDF.js";
 import generatePDF from "../utils/generatePDF.js";
 import multer from "multer";
 
