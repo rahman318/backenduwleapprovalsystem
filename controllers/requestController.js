@@ -4,7 +4,6 @@ import User from "../models/user.js";
 import { sendEmail } from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
-import generatePDF from "../utils/generatePDF.js";
 import multer from "multer";
 
 // ================== MULTER SETUP ==================
@@ -313,7 +312,7 @@ const assignedAt = request.assignedAt ? new Date(request.assignedAt).toLocaleStr
 if (technician.email && technician.email.includes("@")) {
   try {
     const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
-    const pdfBuffer = await generateGenericPDF(request);
+    const pdfBuffer = await generatePDFWithLogo(request);
 
     const html = `
 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
