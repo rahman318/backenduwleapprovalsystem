@@ -27,6 +27,7 @@
     "pdf-lib": "^1.17.1",
     "pdfkit-table": "^0.1.99",
     "qrcode": "^1.5.4"
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
