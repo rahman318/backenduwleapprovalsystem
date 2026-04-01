@@ -249,7 +249,7 @@ export const approveLevel = async (req, res) => {
 // ================== REJECT LEVEL ==================
 export const rejectLevel = async (req, res) => {
   try {
-    const request = await Request.findById(req.params.id);
+    const request = await Request.findById(req.params.id).populate("userId");
     if (!request) return res.status(404).json({ message: "Request not found" });
 
     const levelToReject = request.approvals.find(
@@ -262,23 +262,50 @@ export const rejectLevel = async (req, res) => {
     levelToReject.status = "Rejected";
     levelToReject.actionDate = new Date();
 
+    // 🔥 SIMPAN SIGNATURE JIKA ADA
     if (req.body.signatureApprover) {
       levelToReject.signature = req.body.signatureApprover;
     }
 
-    // 🔥 TAMBAH REMARK (PER LEVEL)
+    // 🔥 TAMBAH REMARK PER LEVEL
     if (req.body.remark) {
       levelToReject.remark = req.body.remark;
     }
 
-    // 🔥 OPTIONAL: SIMPAN GLOBAL REMARK (UNTUK PDF SENANG)
+    // 🔥 OPTIONAL: SIMPAN GLOBAL REMARK UNTUK PDF
     request.remark = req.body.remark || "";
 
+    // 🔥 FINAL STATUS REJECT
     request.finalStatus = "Rejected";
 
     await request.save();
 
-    res.status(200).json({ message: "Level rejected", request });
+    // 🔥 KIRIM EMAIL KE STAFF/REQUESTOR
+    try {
+      const pdfBuffer = await generatePDFWithLogo(request);
+      const staffEmail = request.userId?.email;
+      if (staffEmail && staffEmail.includes("@")) {
+        await sendEmail({
+          to: staffEmail,
+          subject: "Permohonan Anda Telah Ditolak",
+          html: `
+            <div style="font-family: Arial; line-height:1.5; color:#333;">
+              <h2 style="color:#e53935;">Permohonan Ditolak</h2>
+              <p>Assalamualaikum <strong>${request.staffName}</strong>,</p>
+              <p>Permohonan anda telah <b>DITOLAK</b>.</p>
+              <p><strong>Sebab:</strong> ${levelToReject.remark || "-"}</p>
+              <p>Sila rujuk PDF yang dilampirkan untuk maklumat lanjut.</p>
+              <p>Terima kasih.</p>
+            </div>
+          `,
+          attachments: pdfBuffer ? [{ filename: `Permohonan_${request._id}.pdf`, content: pdfBuffer }] : [],
+        });
+      }
+    } catch (emailErr) {
+      console.error("❌ Error generate/send rejected PDF/email:", emailErr.message);
+    }
+
+    res.status(200).json({ message: "Level rejected & email sent to staff", request });
 
   } catch (err) {
     console.error("❌ rejectLevel error:", err.message);
