@@ -171,6 +171,28 @@ if(request.completedAt){
 
   page.drawText(`Status Permohonan : ${mainStatus}`,{x:margin,y,size:12,font:bold,color: mainStatus==="DITOLAK"?rgb(0.8,0.1,0.1): mainStatus==="LULUS"?rgb(0.1,0.6,0.2):rgb(0,0,0)}); y-=40;
 
+  
+// ===== REJECT REMARK =====
+if(request.finalStatus==="Rejected"){
+  let rejectRemark = "";
+
+  // ambil remark dari approvals array
+  const rejectedApproval = (request.approvals||[]).find(a=>a.status==="Rejected" && a.remark?.trim());
+  if(rejectedApproval) rejectRemark = `${rejectedApproval.approverName}: ${rejectedApproval.remark}`;
+
+  // fallback ke root remark
+  if(!rejectRemark && request.remark?.trim()) rejectRemark = request.remark;
+
+  if(rejectRemark){
+    page.drawText("Sebab Permohonan Ditolak:",{x:margin,y,size:12,font:bold,color:rgb(0.8,0.1,0.1)});
+    y-=16;
+    wrapText(rejectRemark,80).forEach(line=>{
+      page.drawText(line,{x:margin+10,y,size:11,font,color:rgb(0.5,0,0)});
+      y-=14;
+    });
+    y-=10;
+  }
+}
   // ===== SIGNATURES =====
   const sigStaffW=180,sigStaffH=60;
   page.drawText("Pemohon",{x:margin,y,size:10,font:bold});
