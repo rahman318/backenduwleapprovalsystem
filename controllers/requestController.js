@@ -252,16 +252,34 @@ export const rejectLevel = async (req, res) => {
     const request = await Request.findById(req.params.id);
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    const levelToReject = request.approvals.find(a => a.approverId?.toString() === req.user._id.toString());
-    if (!levelToReject) return res.status(403).json({ message: "Not authorized to reject" });
+    const levelToReject = request.approvals.find(
+      a => a.approverId?.toString() === req.user._id.toString()
+    );
+    if (!levelToReject)
+      return res.status(403).json({ message: "Not authorized to reject" });
 
+    // 🔥 UPDATE STATUS
     levelToReject.status = "Rejected";
     levelToReject.actionDate = new Date();
-    if (req.body.signatureApprover) levelToReject.signature = req.body.signatureApprover;
+
+    if (req.body.signatureApprover) {
+      levelToReject.signature = req.body.signatureApprover;
+    }
+
+    // 🔥 TAMBAH REMARK (PER LEVEL)
+    if (req.body.remark) {
+      levelToReject.remark = req.body.remark;
+    }
+
+    // 🔥 OPTIONAL: SIMPAN GLOBAL REMARK (UNTUK PDF SENANG)
+    request.remark = req.body.remark || "";
 
     request.finalStatus = "Rejected";
+
     await request.save();
+
     res.status(200).json({ message: "Level rejected", request });
+
   } catch (err) {
     console.error("❌ rejectLevel error:", err.message);
     res.status(500).json({ message: "Gagal reject level", error: err.message });
