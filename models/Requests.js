@@ -87,6 +87,12 @@ finalStatus: {
   default: "Pending",
 },
 
+// 🔥 GLOBAL REMARK (UNTUK PDF & DISPLAY)
+remark: { 
+  type: String, 
+  default: "" 
+},
+
 serialNumber: { type: String, unique: true, required: true },
 
 // ================= Problem Description =================
