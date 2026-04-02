@@ -133,7 +133,7 @@ export const createRequest = async (req, res) => {
       console.error("❌ PDF generate error:", pdfErr.message);
     }
 
-    // -------- SEND EMAIL TO APPROVERS --------
+        // -------- SEND EMAIL TO APPROVERS --------
     for (const approval of populatedRequest.approvals) {
       if (!approval.approverId?.email) continue;
       const subject = `Permohonan Baru Dari ${staffName}`;
@@ -159,6 +159,72 @@ export const createRequest = async (req, res) => {
       } catch (emailErr) {
         console.error("❌ Email error:", emailErr.message);
       }
+    }
+
+    // ================= SEND EMAIL CONFIRMATION TO REQUESTOR =================
+    try {
+      const requestorEmail = populatedRequest.userId?.email;
+
+      if (requestorEmail && requestorEmail.includes("@")) {
+        const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+
+        const html = `
+          <div style="font-family: Arial; line-height:1.6; color:#333;">
+            <h2 style="color:#28a745;">Permohonan Berjaya Dihantar ✅</h2>
+
+            <p>Assalamualaikum <strong>${staffName}</strong>,</p>
+
+            <p>Permohonan anda telah berjaya dihantar ke sistem e-Approval.</p>
+
+            <hr/>
+
+            <table style="margin:10px 0;">
+              <tr>
+                <td><b>No. Rujukan</b></td>
+                <td>: ${serialNumber}</td>
+              </tr>
+              <tr>
+                <td><b>Jenis Permohonan</b></td>
+                <td>: ${requestType}</td>
+              </tr>
+              <tr>
+                <td><b>Status</b></td>
+                <td>: Pending Approval</td>
+              </tr>
+            </table>
+
+            <br/>
+
+            <p>Sila simpan nombor rujukan ini untuk semakan akan datang.</p>
+
+            <p>
+              <a href="${dashboardUrl}" 
+                 style="background:#28a745;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">
+                 Lihat Permohonan
+              </a>
+            </p>
+
+            <br/>
+            <p>Terima kasih.</p>
+          </div>
+        `;
+
+        await sendEmail({
+          to: requestorEmail,
+          subject: `Permohonan Berjaya Dihantar (${serialNumber})`,
+          html,
+          attachments: pdfBuffer
+            ? [{ filename: `Permohonan_${newRequest._id}.pdf`, content: pdfBuffer }]
+            : [],
+        });
+
+        console.log(`✅ Email confirmation sent to requestor: ${requestorEmail}`);
+      } else {
+        console.warn("⚠️ Requestor email tak valid / tiada");
+      }
+
+    } catch (emailErr) {
+      console.error("❌ Error send email to requestor:", emailErr.message);
     }
 
     res.status(201).json(populatedRequest);
