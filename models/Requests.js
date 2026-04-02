@@ -31,6 +31,13 @@ const requestSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     staffName: { type: String, required: true },
     staffDepartment: { type: String, default: "-" },
+
+    // ✅ TAMBAH NI
+    requestorEmail: { 
+      type: String, 
+      required: true 
+    },
+    
     requestType: {
       type: String,
       enum: ["CUTI", "PEMBELIAN", "IT_SUPPORT", "Maintenance"],
