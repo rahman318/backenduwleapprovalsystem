@@ -102,6 +102,7 @@ export const createRequest = async (req, res) => {
     // -------- CREATE REQUEST --------
     const newRequest = new Request({
       userId,
+      requestorEmail: req.body.requestorEmail || req.user?.email || "-", // ✅ assign email
       staffName,
       staffDepartment: staffDepartment || "-",
       requestType,
