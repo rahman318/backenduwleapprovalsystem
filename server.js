@@ -40,6 +40,7 @@ app.use(express.urlencoded({ extended: true })); // untuk form data
 // ==========================
 app.use("/api/users", usersRoutes);
 app.use("/api/requests", requestRoutes);
+app.use("/job-orders", requestRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
 app.use("/verify", verifyRoutes);
