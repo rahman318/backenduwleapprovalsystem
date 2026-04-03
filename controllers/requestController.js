@@ -250,6 +250,20 @@ export const getRequests = async (req, res) => {
   }
 };
 
+//=================== GET STAFF REQUEST HISTORY====================
+export const getMyRequests = async (req, res) => {
+  try {
+    const requests = await Request.find({ userId: req.user.id })
+      .populate("approvals.approverId", "name email department") // populate siap info approver
+      .sort({ createdAt: -1 }); // latest first
+
+    res.json(requests);
+  } catch (error) {
+    console.error("Error fetching requests:", error);
+    res.status(500).json({ message: "Failed to fetch requests" });
+  }
+};
+
 // ================== GET REQUESTS FOR TECHNICIAN ==================
 export const getRequestsForTechnician = async (req, res) => {
   try {
