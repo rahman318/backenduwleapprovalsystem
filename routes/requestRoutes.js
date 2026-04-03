@@ -88,6 +88,9 @@ router.delete("/:id", authMiddleware, deleteRequestById);
 // ================== GET ALL REQUESTS ==================
 router.get("/", authMiddleware, getRequests);
 
+// 🔥 route baru untuk staff lihat history
+router.get("/my-requests", authMiddleware, getMyRequests);
+
 // ================== APPROVE / REJECT ==================
 router.put("/approve-level/:id", authMiddleware, approveLevel);
 router.put("/reject-level/:id", authMiddleware, rejectLevel);
