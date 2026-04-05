@@ -398,6 +398,56 @@ if (technician.email && technician.email.includes("@")) {
   }
 });
 
+// ================== RECALL REQUEST ==================
+router.put("/:id/recall", authMiddleware, async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    if (request.status !== "Pending") {
+      return res.status(400).json({ message: "Only pending request can be recalled" });
+    }
+
+    request.status = "Recalled";
+    request.isRecalled = true;
+
+    await request.save();
+
+    res.json({ message: "Request recalled successfully", request });
+  } catch (err) {
+    console.error("❌ Recall request error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ================== UPDATE / EDIT REQUEST ==================
+router.put("/:id", authMiddleware, async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    if (request.status !== "Recalled") {
+      return res.status(400).json({ message: "Only recalled request can be edited" });
+    }
+
+    // update semua field yang dibenarkan (payload dari frontend)
+    Object.assign(request, req.body);
+
+    // reset balik status
+    request.status = "Pending";
+    request.isRecalled = false;
+
+    await request.save();
+
+    res.json({ message: "Request updated & resubmitted", request });
+  } catch (err) {
+    console.error("❌ Edit request error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 // ================== EXPORT ROUTER ==================
 export default router;
 
