@@ -405,7 +405,7 @@ router.put("/:id/recall", authMiddleware, async (req, res) => {
 
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    if (request.status !== "Pending") {
+    if (request.status !== "pending") {
       return res.status(400).json({ message: "Only pending request can be recalled" });
     }
 
