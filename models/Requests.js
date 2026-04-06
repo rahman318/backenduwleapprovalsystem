@@ -90,7 +90,7 @@ timeToComplete: { type: Number, default: null },
 
 finalStatus: {
   type: String,
-  enum: ["Pending", "Approved", "Rejected", "recalled"],
+  enum: ["Pending", "Approved", "Rejected", "Recalled"],
   default: "Pending",
 },
 
