@@ -95,6 +95,19 @@ router.get("/my-requests", authMiddleware, getMyRequests);
 router.put("/approve-level/:id", authMiddleware, approveLevel);
 router.put("/reject-level/:id", authMiddleware, rejectLevel);
 
+// ================== GET SINGLE REQUEST BY ID ==================
+router.get("/:id", authMiddleware, async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    res.json({ request });
+  } catch (err) {
+    console.error("❌ GET request by ID error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 // ================== GENERATE PDF ==================
 router.get("/:id/pdf", async (req, res) => {
   try {
