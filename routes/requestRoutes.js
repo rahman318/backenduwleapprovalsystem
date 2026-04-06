@@ -430,15 +430,19 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    if (request.status !== "Recalled") {
+    // 🔥 check only recalled request can be edited
+    if (request.status?.trim().toLowerCase() !== STATUS.RECALLED) {
       return res.status(400).json({ message: "Only recalled request can be edited" });
     }
 
-    // update semua field yang dibenarkan (payload dari frontend)
-    Object.assign(request, req.body);
+    // 🔥 Safe update: whitelist only allowed fields
+    const allowedFields = ["title", "description", "finalStatus"];
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) request[field] = req.body[field];
+    });
 
-    // reset balik status
-    request.status = "Pending";
+    // 🔥 Reset status after edit (resubmit)
+    request.status = STATUS.PENDING;
     request.isRecalled = false;
 
     await request.save();
