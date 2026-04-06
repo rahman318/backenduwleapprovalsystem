@@ -511,13 +511,16 @@ export const technicianUpdateStatus = async (req, res) => {
     if (!["In Progress", "Completed"].includes(status)) 
       return res.status(400).json({ message: "Status tidak sah" });
 
+    // ====== GET REQUEST ======
     const request = await Request.findById(id);
     if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
+    // ====== CHECK TECHNICIAN ======
     if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
     }
 
+    // ====== UPDATE STATUS ======
     if (status === "In Progress") {
       request.maintenanceStatus = "In Progress";
       if (!request.assignedAt) request.assignedAt = new Date();
@@ -535,8 +538,11 @@ export const technicianUpdateStatus = async (req, res) => {
 
     await request.save();
 
-      // ================= SEND EMAIL TO APPROVERS =================
-    for (const approval of request.approvals) {
+    // ====== POPULATE APPROVERS SEBELUM EMAIL ======
+    const requestWithApprovers = await Request.findById(id).populate("approvals.approverId");
+
+    // ====== SEND EMAIL TO APPROVERS ======
+    for (const approval of requestWithApprovers.approvals) {
       if (!approval.approverId?.email) continue;
 
       const subject = `Status Permohonan Telah Dikemaskini oleh Technician`;
@@ -546,12 +552,12 @@ export const technicianUpdateStatus = async (req, res) => {
         <div style="font-family: Arial, sans-serif; line-height:1.5; color:#333;">
           <h3 style="color:#1a73e8;">Status Request Dikemaskini</h3>
           <p>Hi <strong>${approval.approverId.username || approval.approverName}</strong>,</p>
-          <p>Technician telah kemaskini status request "<strong>${request.requestType}</strong>" kepada <strong>${request.maintenanceStatus}</strong>.</p>
-          <p>No. Rujukan: <strong>${request.serialNumber}</strong></p>
-          <p>Staff: ${request.staffName}</p>
+          <p>Technician telah kemaskini status request "<strong>${requestWithApprovers.requestType}</strong>" kepada <strong>${requestWithApprovers.maintenanceStatus}</strong>.</p>
+          <p>No. Rujukan: <strong>${requestWithApprovers.serialNumber}</strong></p>
+          <p>Staff: ${requestWithApprovers.staffName}</p>
           <p>Sila semak dashboard untuk maklumat lanjut:</p>
           <p>
-            <a href="${dashboardUrl}/approver/requests/${request._id}" 
+            <a href="${dashboardUrl}/approver/requests/${requestWithApprovers._id}" 
                style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">
                Log Masuk Dashboard
             </a>
@@ -572,8 +578,7 @@ export const technicianUpdateStatus = async (req, res) => {
     }
 
     res.status(200).json({ message: `Request updated to ${status} & approvers notified`, request });
-    
-  
+
   } catch (err) {
     console.error("❌ Technician update error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
