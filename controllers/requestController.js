@@ -534,7 +534,46 @@ export const technicianUpdateStatus = async (req, res) => {
     }
 
     await request.save();
-    res.status(200).json({ message: `Request updated to ${status}`, request });
+
+      // ================= SEND EMAIL TO APPROVERS =================
+    for (const approval of request.approvals) {
+      if (!approval.approverId?.email) continue;
+
+      const subject = `Status Permohonan Telah Dikemaskini oleh Technician`;
+      const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; line-height:1.5; color:#333;">
+          <h3 style="color:#1a73e8;">Status Request Dikemaskini</h3>
+          <p>Hi <strong>${approval.approverId.username || approval.approverName}</strong>,</p>
+          <p>Technician telah kemaskini status request "<strong>${request.requestType}</strong>" kepada <strong>${request.maintenanceStatus}</strong>.</p>
+          <p>No. Rujukan: <strong>${request.serialNumber}</strong></p>
+          <p>Staff: ${request.staffName}</p>
+          <p>Sila semak dashboard untuk maklumat lanjut:</p>
+          <p>
+            <a href="${dashboardUrl}/approver/requests/${request._id}" 
+               style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">
+               Log Masuk Dashboard
+            </a>
+          </p>
+        </div>
+      `;
+
+      try {
+        await sendEmail({
+          to: approval.approverId.email,
+          subject,
+          html,
+        });
+        console.log(`✅ Email notification sent to approver: ${approval.approverId.email}`);
+      } catch (emailErr) {
+        console.error(`❌ Failed to send email to ${approval.approverId.email}:`, emailErr.message);
+      }
+    }
+
+    res.status(200).json({ message: `Request updated to ${status} & approvers notified`, request });
+    
+  
   } catch (err) {
     console.error("❌ Technician update error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
