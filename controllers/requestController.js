@@ -288,61 +288,80 @@ export const approveLevel = async (req, res) => {
     const request = await Request.findById(req.params.id).populate("userId");
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    const levelToApprove = request.approvals.find(a => a.approverId?.toString() === req.user._id.toString());
+    // ===== FIND LEVEL TO APPROVE =====
+    const levelToApprove = request.approvals.find(
+      a => a.approverId?.toString() === req.user._id.toString()
+    );
     if (!levelToApprove) return res.status(403).json({ message: "Not authorized to approve" });
 
+    // ===== UPDATE LEVEL =====
     levelToApprove.status = "Approved";
     levelToApprove.actionDate = new Date();
     if (req.body.signatureApprover) levelToApprove.signature = req.body.signatureApprover;
 
+    // ===== ASSIGN TECHNICIAN FOR MAINTENANCE =====
     if (request.requestType === "Maintenance" && req.body.assignedTechnician) {
       request.assignedTechnician = req.body.assignedTechnician;
       if (request.maintenanceStatus === "Submitted") request.maintenanceStatus = "In Progress";
     }
 
+    // ===== CHECK ALL APPROVED =====
     const allApproved = request.approvals.every(a => a.status === "Approved");
     if (allApproved) request.finalStatus = "Approved";
 
-    if (allApproved) {
-  try {
-    // ✅ SAVE dulu supaya semua status betul-betul commit
+    // ===== SAVE FIRST =====
     await request.save();
 
-    // ✅ ambil data fresh dari DB (latest + populated)
-    const updatedRequest = await Request.findById(request._id)
-      .populate("userId")
-      .populate("approvals.approverId");
+    // ===== GENERATE PDF & SEND EMAIL STAFF =====
+    try {
+      const updatedRequest = await Request.findById(request._id)
+        .populate("userId")
+        .populate("approvals.approverId");
 
-    const pdfBuffer = await generatePDFWithLogo(updatedRequest);
+      const staffEmail = updatedRequest.userId?.email;
+      if (staffEmail) {
+        let pdfBuffer;
+        let subject;
+        let html;
 
-    const staffEmail = updatedRequest.userId?.email;
+        if (updatedRequest.requestType === "Maintenance") {
+          // ✅ Maintenance → ikut technician status terakhir
+          pdfBuffer = await generatePDFWithLogo(updatedRequest); // PDF ikut maintenance status
+          subject = "Permohonan Maintenance Anda Telah Selesai";
+          html = `
+            <p>Assalamualaikum ${updatedRequest.staffName},</p>
+            <p>Permohonan <b>Maintenance</b> anda telah <b>${updatedRequest.maintenanceStatus}</b>.</p>
+            <p>Sila rujuk PDF yang dilampirkan.</p>
+            <br/><p>Terima kasih.</p>
+          `;
+        } else {
+          // ✅ Request lain → ikut approveLevel final
+          pdfBuffer = await generatePDFWithLogo(updatedRequest); // PDF ikut semua level approve
+          subject = "Permohonan Anda Telah Diluluskan";
+          html = `
+            <p>Assalamualaikum ${updatedRequest.staffName},</p>
+            <p>Permohonan anda telah <b>DILULUSKAN</b>.</p>
+            <p>Sila rujuk PDF yang dilampirkan.</p>
+            <br/><p>Terima kasih.</p>
+          `;
+        }
 
-    if (staffEmail) {
-      await sendEmail({
-        to: staffEmail,
-        subject: "Permohonan Anda Telah Diluluskan",
-        html: `
-          <p>Assalamualaikum ${updatedRequest.staffName},</p>
-          <p>Permohonan anda telah <b>DILULUSKAN</b>.</p>
-          <p>Sila rujuk PDF yang dilampirkan.</p>
-          <br/><p>Terima kasih.</p>
-        `,
-        attachments: [
-          {
-            filename: `Permohonan_${updatedRequest._id}.pdf`,
-            content: pdfBuffer,
-          },
-        ],
-      });
+        // ✅ SEND EMAIL TO STAFF
+        await sendEmail({
+          to: staffEmail,
+          subject,
+          html,
+          attachments: [
+            { filename: `Permohonan_${updatedRequest._id}.pdf`, content: pdfBuffer },
+          ],
+        });
+        console.log(`✅ Email PDF sent to staff: ${staffEmail}`);
+      }
+    } catch (pdfErr) {
+      console.error("❌ Error generate/send PDF/email:", pdfErr.message);
     }
-  } catch (pdfErr) {
-    console.error("❌ Error generate/send final PDF/email:", pdfErr.message);
-  }
-}
 
-    await request.save();
     res.status(200).json({ message: "Level approved successfully", request });
-
   } catch (err) {
     console.error("❌ approveLevel error:", err.message);
     res.status(500).json({ message: "Gagal approve level", error: err.message });
