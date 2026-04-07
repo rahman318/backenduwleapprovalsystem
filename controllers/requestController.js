@@ -578,13 +578,18 @@ export const technicianUpdateStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
+    console.log(`🔹 Technician ${req.user._id} trying to update request ${id} to status: ${status}`);
+
     // ✅ Validate status
-    if (!["In Progress", "Completed"].includes(status))
+    if (!["In Progress", "Completed"].includes(status)) {
       return res.status(400).json({ message: "Status tidak sah" });
+    }
 
     // ✅ Fetch request & populate userId for email
     const request = await Request.findById(id).populate("userId");
     if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
+
+    console.log("🔹 Current maintenanceStatus:", request.maintenanceStatus);
 
     // ✅ Check if current user is assigned technician
     if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
@@ -597,6 +602,11 @@ export const technicianUpdateStatus = async (req, res) => {
       "In Progress": ["Completed"],
       Completed: [],
     };
+
+    if (!request.maintenanceStatus || !allowedTransitions[request.maintenanceStatus]) {
+      console.error("❌ Unknown maintenanceStatus:", request.maintenanceStatus);
+      return res.status(400).json({ message: `Status semasa tidak sah: ${request.maintenanceStatus}` });
+    }
 
     if (!allowedTransitions[request.maintenanceStatus].includes(status)) {
       return res.status(400).json({ message: `Tidak boleh tukar status dari ${request.maintenanceStatus} ke ${status}` });
@@ -618,8 +628,37 @@ export const technicianUpdateStatus = async (req, res) => {
       }
     }
 
-    await request.save();
+    // ================== SAVE REQUEST ==================
+    try {
+      await request.save();
+      console.log(`✅ Request ${id} saved successfully`);
+    } catch (saveErr) {
+      console.error("❌ Error saving request:", saveErr);
+      return res.status(500).json({ message: "Gagal simpan request", error: saveErr.message });
+    }
 
+    // ================== SEND EMAIL IF COMPLETED ==================
+    if (request.requestType === "Maintenance" && request.maintenanceStatus === "Completed") {
+      try {
+        if (request.userId?.email) {
+          const pdfBuffer = await generatePDFWithLogo(request);
+          await sendEmail({
+            to: request.userId.email,
+            subject: "Permohonan Maintenance Telah Selesai",
+            html: `
+              <p>Assalamualaikum ${request.staffName},</p>
+              <p>Permohonan <b>Maintenance</b> anda telah <b>SELESAI</b>.</p>
+              <p>Sila rujuk PDF yang dilampirkan sebagai bukti kerja.</p>
+              <br/><p>Terima kasih.</p>
+            `,
+            attachments: [{ filename: `Permohonan_Maintenance_${request._id}.pdf`, content: pdfBuffer }],
+          });
+          console.log(`✅ PDF sent to staff: ${request.userId.email}`);
+        }
+      } catch (emailErr) {
+        console.error("❌ Error generate/send PDF:", emailErr);
+      }
+    }
     // ================== SEND PDF TO STAFF IF COMPLETED ==================
     if (request.requestType === "Maintenance" && request.maintenanceStatus === "Completed") {
       try {
