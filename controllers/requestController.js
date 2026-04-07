@@ -533,16 +533,13 @@ export const technicianUpdateStatus = async (req, res) => {
     if (!["In Progress", "Completed"].includes(status)) 
       return res.status(400).json({ message: "Status tidak sah" });
 
-    // ====== GET REQUEST ======
     const request = await Request.findById(id);
     if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
-    // ====== CHECK TECHNICIAN ======
     if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
     }
 
-    // ====== UPDATE STATUS ======
     if (status === "In Progress") {
       request.maintenanceStatus = "In Progress";
       if (!request.assignedAt) request.assignedAt = new Date();
@@ -558,13 +555,11 @@ export const technicianUpdateStatus = async (req, res) => {
       }
     }
 
-    // ====== SAVE UPDATE ======
     await request.save();
 
-    // ====== GENERATE PDF & SEND EMAIL JIKA COMPLETED ======
+    // ===== GENERATE PDF & EMAIL STAFF JIKA COMPLETED =====
     if (status === "Completed") {
       try {
-        // Ambil fresh data
         const updatedRequest = await Request.findById(request._id)
           .populate("userId")
           .populate("approvals.approverId");
@@ -592,26 +587,14 @@ export const technicianUpdateStatus = async (req, res) => {
       }
     }
 
-    res.status(200).json({ message: "Status technician berjaya dikemaskini", request });
-
-  } catch (err) {
-    console.error("❌ technicianUpdateStatus error:", err.message);
-    res.status(500).json({ message: "Gagal update status technician", error: err.message });
-  }
-};
-
-    // ====== POPULATE APPROVERS SEBELUM EMAIL ======
+    // ===== EMAIL KE APPROVERS =====
     const requestWithApprovers = await Request.findById(id).populate("approvals.approverId");
-
-    // ====== SEND EMAIL TO APPROVERS ======
     for (const approval of requestWithApprovers.approvals) {
       if (!approval.approverId?.email) continue;
-
       const subject = `Status Permohonan Telah Dikemaskini oleh Technician`;
       const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
-
       const html = `
-        <div style="font-family: Arial, sans-serif; line-height:1.5; color:#333;">
+        <div style="font-family: Arial; line-height:1.5; color:#333;">
           <h3 style="color:#1a73e8;">Status Request Dikemaskini</h3>
           <p>Hi <strong>${approval.approverId.username || approval.approverName}</strong>,</p>
           <p>Technician telah kemaskini status request "<strong>${requestWithApprovers.requestType}</strong>" kepada <strong>${requestWithApprovers.maintenanceStatus}</strong>.</p>
@@ -626,19 +609,15 @@ export const technicianUpdateStatus = async (req, res) => {
           </p>
         </div>
       `;
-
       try {
-        await sendEmail({
-          to: approval.approverId.email,
-          subject,
-          html,
-        });
+        await sendEmail({ to: approval.approverId.email, subject, html });
         console.log(`✅ Email notification sent to approver: ${approval.approverId.email}`);
       } catch (emailErr) {
         console.error(`❌ Failed to send email to ${approval.approverId.email}:`, emailErr.message);
       }
     }
 
+    // ✅ HANYA 1x RES.JSON DI AKHIR
     res.status(200).json({ message: `Request updated to ${status} & approvers notified`, request });
 
   } catch (err) {
@@ -646,7 +625,6 @@ export const technicianUpdateStatus = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
-
 // ================== GET PDF ==================
 export const downloadGenericPDF = async (req, res) => {
   try {
