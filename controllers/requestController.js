@@ -558,7 +558,47 @@ export const technicianUpdateStatus = async (req, res) => {
       }
     }
 
+    // ====== SAVE UPDATE ======
     await request.save();
+
+    // ====== GENERATE PDF & SEND EMAIL JIKA COMPLETED ======
+    if (status === "Completed") {
+      try {
+        // Ambil fresh data
+        const updatedRequest = await Request.findById(request._id)
+          .populate("userId")
+          .populate("approvals.approverId");
+
+        const pdfBuffer = await generatePDFWithLogo(updatedRequest);
+        const staffEmail = updatedRequest.userId?.email;
+
+        if (staffEmail) {
+          await sendEmail({
+            to: staffEmail,
+            subject: "Permohonan Anda Telah Selesai",
+            html: `
+              <p>Assalamualaikum ${updatedRequest.staffName},</p>
+              <p>Permohonan anda telah <b>SELESAI</b>.</p>
+              <p>Sila rujuk laporan kerja dalam PDF.</p>
+              <br/><p>Terima kasih.</p>
+            `,
+            attachments: [
+              { filename: `Laporan_${updatedRequest._id}.pdf`, content: pdfBuffer },
+            ],
+          });
+        }
+      } catch (pdfErr) {
+        console.error("❌ Error generate/send completed PDF/email:", pdfErr.message);
+      }
+    }
+
+    res.status(200).json({ message: "Status technician berjaya dikemaskini", request });
+
+  } catch (err) {
+    console.error("❌ technicianUpdateStatus error:", err.message);
+    res.status(500).json({ message: "Gagal update status technician", error: err.message });
+  }
+};
 
     // ====== POPULATE APPROVERS SEBELUM EMAIL ======
     const requestWithApprovers = await Request.findById(id).populate("approvals.approverId");
