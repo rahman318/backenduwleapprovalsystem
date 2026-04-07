@@ -160,46 +160,6 @@ router.get("/technician", authMiddleware, async (req, res) => {
 
 // ================== TECHNICIAN UPDATE STATUS ==================
 router.put("/:id/maintenance", authMiddleware, technicianUpdateStatus);
-  try {
-    const { id } = req.params;
-    const user = req.user;
-
-    if (user.role.toLowerCase() !== "technician") {
-      return res.status(403).json({ message: "Hanya Technician boleh update status" });
-    }
-
-    const request = await Request.findById(id);
-    if (!request) return res.status(404).json({ message: "Request tak jumpa" });
-
-    // ✅ Pastikan hanya technician assigned boleh update
-    if (!request.assignedTechnician || request.assignedTechnician.toString() !== user._id.toString()) {
-      return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
-    }
-
-    // ✅ Update status ikut backend logic
-    if (request.maintenanceStatus === "Submitted") {
-      request.maintenanceStatus = "In Progress";
-      request.startedAt = new Date();
-    } else if (request.maintenanceStatus === "In Progress") {
-      request.maintenanceStatus = "Completed";
-      request.completedAt = new Date();
-
-      // ===== Kira Time to Complete =====
-      if (request.startedAt) {
-        const durationMs = request.completedAt - request.startedAt;
-        request.timeToComplete = Math.round(durationMs / 60000); // simpan dalam minit
-      }
-    } else {
-      return res.status(400).json({ message: "Status Completed tak boleh update lagi" });
-    }
-
-    await request.save();
-    res.status(200).json({ message: "Status dikemaskini", request });
-  } catch (err) {
-    console.error("❌ Technician update error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-});
 
 // ================== PATCH REMARK ==================
 router.patch("/:id/remark", authMiddleware, async (req, res) => {
