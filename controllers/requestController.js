@@ -304,19 +304,41 @@ export const approveLevel = async (req, res) => {
     if (allApproved) request.finalStatus = "Approved";
 
     if (allApproved) {
-      try {
-        const pdfBuffer = await generatePDFWithLogo(request);
-        const staffEmail = request.userId?.email;
-        if (staffEmail) {
-          await sendEmail({
-            to: staffEmail,
-            subject: "Permohonan Anda Telah Diluluskan",
-            html: `<p>Assalamualaikum ${request.staffName},</p><p>Permohonan anda telah <b>DILULUSKAN</b>.</p><p>Sila rujuk PDF yang dilampirkan.</p><br/><p>Terima kasih.</p>`,
-            attachments: [{ filename: `Permohonan_${request._id}.pdf`, content: pdfBuffer }],
-          });
-        }
-      } catch (pdfErr) { console.error("❌ Error generate/send final PDF/email:", pdfErr.message); }
+  try {
+    // ✅ SAVE dulu supaya semua status betul-betul commit
+    await request.save();
+
+    // ✅ ambil data fresh dari DB (latest + populated)
+    const updatedRequest = await Request.findById(request._id)
+      .populate("userId")
+      .populate("approvals.approverId");
+
+    const pdfBuffer = await generatePDFWithLogo(updatedRequest);
+
+    const staffEmail = updatedRequest.userId?.email;
+
+    if (staffEmail) {
+      await sendEmail({
+        to: staffEmail,
+        subject: "Permohonan Anda Telah Diluluskan",
+        html: `
+          <p>Assalamualaikum ${updatedRequest.staffName},</p>
+          <p>Permohonan anda telah <b>DILULUSKAN</b>.</p>
+          <p>Sila rujuk PDF yang dilampirkan.</p>
+          <br/><p>Terima kasih.</p>
+        `,
+        attachments: [
+          {
+            filename: `Permohonan_${updatedRequest._id}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      });
     }
+  } catch (pdfErr) {
+    console.error("❌ Error generate/send final PDF/email:", pdfErr.message);
+  }
+}
 
     await request.save();
     res.status(200).json({ message: "Level approved successfully", request });
