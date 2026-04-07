@@ -159,7 +159,7 @@ router.get("/technician", authMiddleware, async (req, res) => {
 });
 
 // ================== TECHNICIAN UPDATE STATUS ==================
-router.put("/:id/maintenance", authMiddleware, async (req, res) => {
+router.put("/:id/maintenance", authMiddleware, technicianUpdateStatus);
   try {
     const { id } = req.params;
     const user = req.user;
