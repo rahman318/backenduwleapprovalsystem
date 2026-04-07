@@ -324,16 +324,26 @@ export const approveLevel = async (req, res) => {
         let subject;
         let html;
 
-        if (updatedRequest.requestType === "Maintenance") {
-          // ✅ Maintenance → ikut technician status terakhir
-          pdfBuffer = await generatePDFWithLogo(updatedRequest); // PDF ikut maintenance status
-          subject = "Permohonan Maintenance Anda Telah Selesai";
-          html = `
-            <p>Assalamualaikum ${updatedRequest.staffName},</p>
-            <p>Permohonan <b>Maintenance</b> anda telah <b>${updatedRequest.maintenanceStatus}</b>.</p>
-            <p>Sila rujuk PDF yang dilampirkan.</p>
-            <br/><p>Terima kasih.</p>
-          `;
+        if (status === "Completed" && request.requestType === "Maintenance") {
+  try {
+    // ambil data latest + populate
+    const updatedRequest = await Request.findById(request._id)
+      .populate("userId")
+      .populate("approvals.approverId");
+
+    const pdfBuffer = await generatePDFWithLogo(updatedRequest);
+    const staffEmail = updatedRequest.userId?.email;
+
+    if (staffEmail) {
+      await sendEmail({
+        to: staffEmail,
+        subject: "Permohonan Maintenance Anda Telah Selesai",
+        html: `
+          <p>Assalamualaikum ${updatedRequest.staffName},</p>
+          <p>Permohonan <b>Maintenance</b> anda telah <b>SELESAI</b>.</p>
+          <p>Sila rujuk PDF yang dilampirkan.</p>
+          <br/><p>Terima kasih.</p>
+        `,
         } else {
           // ✅ Request lain → ikut approveLevel final
           pdfBuffer = await generatePDFWithLogo(updatedRequest); // PDF ikut semua level approve
