@@ -311,8 +311,7 @@ export const approveLevel = async (req, res) => {
 
     await request.save();
 
-    // ===== GENERATE PDF & EMAIL STAFF =====
-    // ❌ Maintenance → JANGAN hantar sini (technician nanti yang hantar bila Completed)
+    // ===== GENERATE PDF & EMAIL STAFF for non-Maintenance =====
     if (request.requestType !== "Maintenance" && allApproved) {
       try {
         const updatedRequest = await Request.findById(request._id)
@@ -348,6 +347,52 @@ export const approveLevel = async (req, res) => {
   } catch (err) {
     console.error("❌ approveLevel error:", err.message);
     res.status(500).json({ message: "Gagal approve level", error: err.message });
+  }
+};
+
+
+// ================== TECHNICIAN UPDATE MAINTENANCE ==================
+export const updateMaintenanceStatus = async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id).populate("userId");
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    // ===== UPDATE STATUS =====
+    if (req.body.maintenanceStatus) request.maintenanceStatus = req.body.maintenanceStatus;
+    await request.save();
+
+    // ===== SEND PDF TO STAFF IF COMPLETED =====
+    if (request.requestType === "Maintenance" && request.maintenanceStatus === "Completed") {
+      try {
+        const pdfBuffer = await generatePDFWithLogo(request);
+        const staffEmail = request.userId?.email;
+
+        if (staffEmail) {
+          await sendEmail({
+            to: staffEmail,
+            subject: "Permohonan Maintenance Telah Selesai",
+            html: `
+              <p>Assalamualaikum ${request.staffName},</p>
+              <p>Permohonan <b>Maintenance</b> anda telah <b>SELESAI</b>.</p>
+              <p>Sila rujuk PDF yang dilampirkan sebagai bukti kerja.</p>
+              <br/><p>Terima kasih.</p>
+            `,
+            attachments: [
+              { filename: `Permohonan_Maintenance_${request._id}.pdf`, content: pdfBuffer },
+            ],
+          });
+          console.log(`✅ PDF Maintenance sent to staff: ${staffEmail}`);
+        }
+      } catch (pdfErr) {
+        console.error("❌ Error generate/send PDF for Maintenance:", pdfErr.message);
+      }
+    }
+
+    res.status(200).json({ message: "Maintenance status updated", request });
+
+  } catch (err) {
+    console.error("❌ updateMaintenanceStatus error:", err.message);
+    res.status(500).json({ message: "Gagal update maintenance status", error: err.message });
   }
 };
 
