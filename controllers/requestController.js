@@ -561,36 +561,32 @@ export const technicianUpdateStatus = async (req, res) => {
 
     await request.save();
 
-    // ===== ONLY FOR MAINTENANCE REQUEST: EMAIL STAFF DENGAN PDF =====
-if (status === "Completed" && request.requestType === "Maintenance") {
-  try {
-    const updatedRequest = await Request.findById(request._id)
-      .populate("userId")
-      .populate("approvals.approverId");
+    // ✅ Hantar PDF staff bila Completed
+    if (request.requestType === "Maintenance" && request.maintenanceStatus === "Completed") {
+      try {
+        const pdfBuffer = await generatePDFWithLogo(request);
+        const staffEmail = request.userId?.email;
 
-    const pdfBuffer = await generatePDFWithLogo(updatedRequest);
-    const staffEmail = updatedRequest.userId?.email;
-
-    if (staffEmail) {
-      await sendEmail({
-        to: staffEmail,
-        subject: "Permohonan Maintenance Anda Telah Selesai",
-        html: `
-          <p>Assalamualaikum ${updatedRequest.staffName},</p>
-          <p>Permohonan <b>Maintenance</b> anda telah <b>SELESAI</b>.</p>
-          <p>Sila rujuk PDF yang dilampirkan.</p>
-          <br/><p>Terima kasih.</p>
-        `,
-        attachments: [
-          { filename: `Laporan_Maintenance_${updatedRequest._id}.pdf`, content: pdfBuffer },
-        ],
-      });
-      console.log(`✅ Email PDF sent to staff (Maintenance Completed): ${staffEmail}`);
+        if (staffEmail) {
+          await sendEmail({
+            to: staffEmail,
+            subject: "Permohonan Maintenance Telah Selesai",
+            html: `
+              <p>Assalamualaikum ${request.staffName},</p>
+              <p>Permohonan <b>Maintenance</b> anda telah <b>SELESAI</b>.</p>
+              <p>Sila rujuk PDF yang dilampirkan sebagai bukti kerja.</p>
+              <br/><p>Terima kasih.</p>
+            `,
+            attachments: [
+              { filename: `Permohonan_Maintenance_${request._id}.pdf`, content: pdfBuffer },
+            ],
+          });
+          console.log(`✅ PDF Maintenance sent to staff: ${staffEmail}`);
+        }
+      } catch (pdfErr) {
+        console.error("❌ Error generate/send PDF for Maintenance:", pdfErr.message);
+      }
     }
-  } catch (pdfErr) {
-    console.error("❌ Error generate/send PDF/email (Maintenance):", pdfErr.message);
-  }
-}
 
     // ===== EMAIL KE APPROVERS (SAMA UNTUK SEMUA REQUEST) =====
     const requestWithApprovers = await Request.findById(id).populate("approvals.approverId");
