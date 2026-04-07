@@ -530,16 +530,21 @@ export const technicianUpdateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+
     if (!["In Progress", "Completed"].includes(status)) 
       return res.status(400).json({ message: "Status tidak sah" });
 
-    const request = await Request.findById(id);
+    const request = await Request.findById(id)
+      .populate("userId")           // untuk staff email
+      .populate("approvals.approverId"); // untuk approvers
+
     if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
     if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
     }
 
+    // ===== Update Status =====
     if (status === "In Progress") {
       request.maintenanceStatus = "In Progress";
       if (!request.assignedAt) request.assignedAt = new Date();
@@ -551,58 +556,54 @@ export const technicianUpdateStatus = async (req, res) => {
 
       if (request.startedAt) {
         const durationMs = request.completedAt - request.startedAt;
-        request.timeToComplete = Math.round(durationMs / 60000);
+        request.timeToComplete = Math.round(durationMs / 60000); // in minutes
       }
     }
 
     await request.save();
 
-    // ===== GENERATE PDF & EMAIL STAFF JIKA COMPLETED =====
+    // ===== EMAIL KE STAFF + PDF JIKA COMPLETED =====
     if (status === "Completed") {
-      try {
-        const updatedRequest = await Request.findById(request._id)
-          .populate("userId")
-          .populate("approvals.approverId");
+      const staffEmail = request.userId?.email;
+      if (staffEmail) {
+        try {
+          const pdfBuffer = await generatePDFWithLogo(request);
 
-        const pdfBuffer = await generatePDFWithLogo(updatedRequest);
-        const staffEmail = updatedRequest.userId?.email;
-
-        if (staffEmail) {
           await sendEmail({
             to: staffEmail,
             subject: "Permohonan Anda Telah Selesai",
             html: `
-              <p>Assalamualaikum ${updatedRequest.staffName},</p>
+              <p>Assalamualaikum ${request.staffName},</p>
               <p>Permohonan anda telah <b>SELESAI</b>.</p>
               <p>Sila rujuk laporan kerja dalam PDF.</p>
               <br/><p>Terima kasih.</p>
             `,
             attachments: [
-              { filename: `Laporan_${updatedRequest._id}.pdf`, content: pdfBuffer },
+              { filename: `Laporan_${request._id}.pdf`, content: pdfBuffer },
             ],
           });
+          console.log(`✅ Email + PDF sent to staff: ${staffEmail}`);
+        } catch (pdfErr) {
+          console.error("❌ Error generate/send completed PDF/email:", pdfErr.message);
         }
-      } catch (pdfErr) {
-        console.error("❌ Error generate/send completed PDF/email:", pdfErr.message);
       }
     }
 
     // ===== EMAIL KE APPROVERS =====
-    const requestWithApprovers = await Request.findById(id).populate("approvals.approverId");
-    for (const approval of requestWithApprovers.approvals) {
+    const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+    for (const approval of request.approvals) {
       if (!approval.approverId?.email) continue;
       const subject = `Status Permohonan Telah Dikemaskini oleh Technician`;
-      const dashboardUrl = process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
       const html = `
         <div style="font-family: Arial; line-height:1.5; color:#333;">
           <h3 style="color:#1a73e8;">Status Request Dikemaskini</h3>
           <p>Hi <strong>${approval.approverId.username || approval.approverName}</strong>,</p>
-          <p>Technician telah kemaskini status request "<strong>${requestWithApprovers.requestType}</strong>" kepada <strong>${requestWithApprovers.maintenanceStatus}</strong>.</p>
-          <p>No. Rujukan: <strong>${requestWithApprovers.serialNumber}</strong></p>
-          <p>Staff: ${requestWithApprovers.staffName}</p>
+          <p>Technician telah kemaskini status request "<strong>${request.requestType}</strong>" kepada <strong>${request.maintenanceStatus}</strong>.</p>
+          <p>No. Rujukan: <strong>${request.serialNumber}</strong></p>
+          <p>Staff: ${request.staffName}</p>
           <p>Sila semak dashboard untuk maklumat lanjut:</p>
           <p>
-            <a href="${dashboardUrl}/approver/requests/${requestWithApprovers._id}" 
+            <a href="${dashboardUrl}/approver/requests/${request._id}" 
                style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">
                Log Masuk Dashboard
             </a>
@@ -617,14 +618,15 @@ export const technicianUpdateStatus = async (req, res) => {
       }
     }
 
-    // ✅ HANYA 1x RES.JSON DI AKHIR
-    res.status(200).json({ message: `Request updated to ${status} & approvers notified`, request });
+    // ✅ Response di akhir sahaja
+    res.status(200).json({ message: `Request updated to ${status}, staff + approvers notified`, request });
 
   } catch (err) {
     console.error("❌ Technician update error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 // ================== GET PDF ==================
 export const downloadGenericPDF = async (req, res) => {
   try {
