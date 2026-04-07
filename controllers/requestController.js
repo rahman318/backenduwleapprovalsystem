@@ -309,69 +309,42 @@ export const approveLevel = async (req, res) => {
     const allApproved = request.approvals.every(a => a.status === "Approved");
     if (allApproved) request.finalStatus = "Approved";
 
-    // ===== SAVE FIRST =====
     await request.save();
 
-    // ===== GENERATE PDF & SEND EMAIL STAFF =====
-    try {
-      const updatedRequest = await Request.findById(request._id)
-        .populate("userId")
-        .populate("approvals.approverId");
+    // ===== GENERATE PDF & EMAIL STAFF =====
+    // ❌ Maintenance → JANGAN hantar sini (technician nanti yang hantar bila Completed)
+    if (request.requestType !== "Maintenance" && allApproved) {
+      try {
+        const updatedRequest = await Request.findById(request._id)
+          .populate("userId")
+          .populate("approvals.approverId");
 
-      const staffEmail = updatedRequest.userId?.email;
-      if (staffEmail) {
-        let pdfBuffer;
-        let subject;
-        let html;
+        const pdfBuffer = await generatePDFWithLogo(updatedRequest);
+        const staffEmail = updatedRequest.userId?.email;
 
-        if (status === "Completed" && request.requestType === "Maintenance") {
-  try {
-    // ambil data latest + populate
-    const updatedRequest = await Request.findById(request._id)
-      .populate("userId")
-      .populate("approvals.approverId");
-
-    const pdfBuffer = await generatePDFWithLogo(updatedRequest);
-    const staffEmail = updatedRequest.userId?.email;
-
-    if (staffEmail) {
-      await sendEmail({
-        to: staffEmail,
-        subject: "Permohonan Maintenance Anda Telah Selesai",
-        html: `
-          <p>Assalamualaikum ${updatedRequest.staffName},</p>
-          <p>Permohonan <b>Maintenance</b> anda telah <b>SELESAI</b>.</p>
-          <p>Sila rujuk PDF yang dilampirkan.</p>
-          <br/><p>Terima kasih.</p>
-        `,
-        } else {
-          // ✅ Request lain → ikut approveLevel final
-          pdfBuffer = await generatePDFWithLogo(updatedRequest); // PDF ikut semua level approve
-          subject = "Permohonan Anda Telah Diluluskan";
-          html = `
-            <p>Assalamualaikum ${updatedRequest.staffName},</p>
-            <p>Permohonan anda telah <b>DILULUSKAN</b>.</p>
-            <p>Sila rujuk PDF yang dilampirkan.</p>
-            <br/><p>Terima kasih.</p>
-          `;
+        if (staffEmail) {
+          await sendEmail({
+            to: staffEmail,
+            subject: "Permohonan Anda Telah Diluluskan",
+            html: `
+              <p>Assalamualaikum ${updatedRequest.staffName},</p>
+              <p>Permohonan anda telah <b>DILULUSKAN</b>.</p>
+              <p>Sila rujuk PDF yang dilampirkan.</p>
+              <br/><p>Terima kasih.</p>
+            `,
+            attachments: [
+              { filename: `Permohonan_${updatedRequest._id}.pdf`, content: pdfBuffer },
+            ],
+          });
+          console.log(`✅ Email PDF sent to staff: ${staffEmail}`);
         }
-
-        // ✅ SEND EMAIL TO STAFF
-        await sendEmail({
-          to: staffEmail,
-          subject,
-          html,
-          attachments: [
-            { filename: `Permohonan_${updatedRequest._id}.pdf`, content: pdfBuffer },
-          ],
-        });
-        console.log(`✅ Email PDF sent to staff: ${staffEmail}`);
+      } catch (pdfErr) {
+        console.error("❌ Error generate/send PDF/email:", pdfErr.message);
       }
-    } catch (pdfErr) {
-      console.error("❌ Error generate/send PDF/email:", pdfErr.message);
     }
 
     res.status(200).json({ message: "Level approved successfully", request });
+
   } catch (err) {
     console.error("❌ approveLevel error:", err.message);
     res.status(500).json({ message: "Gagal approve level", error: err.message });
