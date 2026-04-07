@@ -562,7 +562,7 @@ export const technicianUpdateStatus = async (req, res) => {
     await request.save();
 
     // ===== ONLY FOR MAINTENANCE REQUEST: EMAIL STAFF DENGAN PDF =====
-    if (request.requestType === "Maintenance" && status === "Completed") {
+    if (status === "Completed" && request.requestType === "Maintenance") {
       try {
         const updatedRequest = await Request.findById(request._id)
           .populate("userId")
@@ -574,21 +574,21 @@ export const technicianUpdateStatus = async (req, res) => {
         if (staffEmail) {
           await sendEmail({
             to: staffEmail,
-            subject: "Permohonan Anda Telah Selesai",
+            subject: "Permohonan Maintenance Anda Telah Selesai",
             html: `
               <p>Assalamualaikum ${updatedRequest.staffName},</p>
-              <p>Permohonan anda telah <b>SELESAI</b>.</p>
-              <p>Sila rujuk laporan kerja dalam PDF yang dilampirkan.</p>
+              <p>Permohonan <b>Maintenance</b> anda telah <b>SELESAI</b>.</p>
+              <p>Sila rujuk PDF yang dilampirkan.</p>
               <br/><p>Terima kasih.</p>
             `,
             attachments: [
-              { filename: `Laporan_${updatedRequest._id}.pdf`, content: pdfBuffer },
+              { filename: `Laporan_Maintenance_${updatedRequest._id}.pdf`, content: pdfBuffer },
             ],
           });
-          console.log(`✅ Email PDF sent to staff: ${staffEmail}`);
+          console.log(`✅ Email PDF sent to staff (Maintenance Completed): ${staffEmail}`);
         }
       } catch (pdfErr) {
-        console.error("❌ Error generate/send maintenance PDF/email:", pdfErr.message);
+        console.error("❌ Error generate/send PDF/email (Maintenance):", pdfErr.message);
       }
     }
 
