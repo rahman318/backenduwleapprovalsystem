@@ -578,21 +578,35 @@ export const technicianUpdateStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
+    // ✅ Validate status
     if (!["In Progress", "Completed"].includes(status))
       return res.status(400).json({ message: "Status tidak sah" });
 
-    const request = await Request.findById(id);
+    // ✅ Fetch request & populate userId for email
+    const request = await Request.findById(id).populate("userId");
     if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
+    // ✅ Check if current user is assigned technician
     if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
     }
 
-    // ===== UPDATE STATUS =====
+    // ================== VALIDATE TRANSITIONS ==================
+    const allowedTransitions = {
+      Submitted: ["In Progress"],
+      "In Progress": ["Completed"],
+      Completed: [],
+    };
+
+    if (!allowedTransitions[request.maintenanceStatus].includes(status)) {
+      return res.status(400).json({ message: `Tidak boleh tukar status dari ${request.maintenanceStatus} ke ${status}` });
+    }
+
+    // ================== UPDATE STATUS ==================
     if (status === "In Progress") {
       request.maintenanceStatus = "In Progress";
       if (!request.assignedAt) request.assignedAt = new Date();
-      request.startedAt = new Date();
+      if (!request.startedAt) request.startedAt = new Date();
     } else if (status === "Completed") {
       request.maintenanceStatus = "Completed";
       request.completedAt = new Date();
@@ -600,13 +614,13 @@ export const technicianUpdateStatus = async (req, res) => {
 
       if (request.startedAt) {
         const durationMs = request.completedAt - request.startedAt;
-        request.timeToComplete = Math.round(durationMs / 60000);
+        request.timeToComplete = Math.round(durationMs / 60000); // in minutes
       }
     }
 
     await request.save();
 
-    // ✅ Hantar PDF staff bila Completed
+    // ================== SEND PDF TO STAFF IF COMPLETED ==================
     if (request.requestType === "Maintenance" && request.maintenanceStatus === "Completed") {
       try {
         const pdfBuffer = await generatePDFWithLogo(request);
@@ -632,7 +646,6 @@ export const technicianUpdateStatus = async (req, res) => {
         console.error("❌ Error generate/send PDF for Maintenance:", pdfErr.message);
       }
     }
-
     // ===== EMAIL KE APPROVERS (SAMA UNTUK SEMUA REQUEST) =====
     const requestWithApprovers = await Request.findById(id).populate("approvals.approverId");
     for (const approval of requestWithApprovers.approvals) {
