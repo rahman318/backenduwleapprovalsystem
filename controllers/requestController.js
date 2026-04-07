@@ -364,7 +364,7 @@ export const updateMaintenanceStatus = async (req, res) => {
     // ===== SEND PDF TO STAFF IF COMPLETED =====
     if (request.requestType === "Maintenance" && request.maintenanceStatus === "Completed") {
       try {
-        const pdfBuffer = await generatePDFWithLogo(request);
+        const pdfBuffer = await generatePDFWithLogo(updatedRequest);
         const staffEmail = request.userId?.email;
 
         if (staffEmail) {
