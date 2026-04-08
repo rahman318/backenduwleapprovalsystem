@@ -18,11 +18,12 @@ import {
   assignTechnician,
 } from "../controllers/requestController.js";
 import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
+import { sendPushNotification } from "../utils/sendPush.js"; // 🔥 Inject push
 
 const router = express.Router();
 
 // ================== MULTER ==================
-const storage = multer.memoryStorage(); // tak perlu simpan temp di disk
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // ================== Middleware: Upload ke Supabase ==================
@@ -30,21 +31,18 @@ const uploadToSupabase = async (req, res, next) => {
   if (!req.file) return next();
 
   try {
-    // req.file.buffer dah ada content file
     const fileName = Date.now() + "-" + req.file.originalname;
-
     const { data, error } = await supabase.storage
       .from("eapproval_uploads")
       .upload(fileName, req.file.buffer, { upsert: true });
 
     if (error) throw error;
 
-    // public URL
     const { data: publicData } = supabase.storage
       .from("eapproval_uploads")
       .getPublicUrl(fileName);
 
-    req.fileUrl = publicData.publicUrl; // ✅ public URL betul
+    req.fileUrl = publicData.publicUrl;
     console.log("✅ File uploaded ke Supabase:", req.fileUrl);
 
     next();
@@ -63,23 +61,34 @@ router.post(
   (req, res, next) => {
     try {
       let payload;
-if (req.body.data) {
-  payload = JSON.parse(req.body.data); // parsed JSON object
-} else {
-  payload = { ...req.body }; // clone object supaya kita boleh attach fileUrl
-}
+      if (req.body.data) {
+        payload = JSON.parse(req.body.data);
+      } else {
+        payload = { ...req.body };
+      }
 
-if (req.fileUrl) {
-  payload.fileUrl = req.fileUrl; // ✅ attach public URL
-}
+      if (req.fileUrl) payload.fileUrl = req.fileUrl;
 
-req.parsedData = payload;
+      req.parsedData = payload;
       next();
     } catch (err) {
       return res.status(400).json({ message: "Data JSON tak valid" });
     }
   },
-  createRequest
+  createRequest,
+  async (req, res) => {
+    try {
+      // 🔥 Push notification ke semua PWA subscriber
+      const requestData = req.parsedData;
+      await sendPushNotification(
+        "📢 New Request Created",
+        `Request: ${requestData.title || "No Title"} dari ${req.user.username || "Staff"}`,
+        `/my-requests`
+      );
+    } catch (err) {
+      console.error("❌ Push notification error:", err.message);
+    }
+  }
 );
 
 // ================== DELETE REQUEST ==================
@@ -169,7 +178,6 @@ router.patch("/:id/remark", authMiddleware, async (req, res) => {
 
     if (!request) return res.status(404).json({ message: "Request tak jumpa" });
 
-    // Hanya assigned technician boleh update remark
     if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Akses ditolak" });
     }
@@ -188,7 +196,7 @@ router.patch("/:id/remark", authMiddleware, async (req, res) => {
 router.patch(
   "/:id/technician-update",
   authMiddleware,
-  upload.single("proofImage"), // multer untuk handle image
+  upload.single("proofImage"),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -198,12 +206,10 @@ router.patch(
       const request = await Request.findById(id);
       if (!request) return res.status(404).json({ message: "Request tidak ditemui" });
 
-      // ✅ Pastikan hanya assigned technician boleh update
       if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
         return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
       }
 
-      // ================= Save proof image to Supabase =================
       if (file) {
         const fileName = Date.now() + "-" + file.originalname;
         const { data, error } = await supabase.storage
@@ -219,7 +225,6 @@ router.patch(
         request.proofImageUrl = publicData.publicUrl;
       }
 
-      // ================= Update remark =================
       if (technicianRemark) request.technicianRemark = technicianRemark;
 
       await request.save();
@@ -238,128 +243,35 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { technicianId } = req.body;
 
-    if (!technicianId) {
-      return res.status(400).json({ message: "TechnicianId diperlukan" });
-    }
-
-    if (user.role.toLowerCase() !== "approver") {
-      return res.status(403).json({ message: "Hanya Approver boleh assign." });
-    }
+    if (!technicianId) return res.status(400).json({ message: "TechnicianId diperlukan" });
+    if (user.role.toLowerCase() !== "approver") return res.status(403).json({ message: "Hanya Approver boleh assign." });
 
     const request = await Request.findById(id).exec();
     if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
     const technician = await User.findById(technicianId).exec();
     if (!technician) return res.status(404).json({ message: "Technician tidak dijumpai" });
-
-    if (technician.role.toLowerCase() !== "technician") {
-      return res.status(400).json({ message: "User bukan technician" });
-    }
+    if (technician.role.toLowerCase() !== "technician") return res.status(400).json({ message: "User bukan technician" });
 
     request.assignedTechnician = technician._id;
     request.slaHours = request.priority === "Urgent" ? 4 : 24;
     request.finalStatus = "Approved";
     request.maintenanceStatus = "Submitted";
-    request.assignedAt = new Date(); // tambah assignedAt supaya email ada tarikh
+    request.assignedAt = new Date();
 
     await request.save();
 
-    // ================== EMAIL NOTIFICATION FIXED ==================
-console.log("📧 Preparing to send email notification to technician...");
-
-// Parse details jika ia string
-let detailsObj = {};
-if (request.details) {
-  try {
-    detailsObj =
-      typeof request.details === "string"
-        ? JSON.parse(request.details)
-        : request.details;
-  } catch (parseErr) {
-    console.warn("⚠️ Failed to parse request.details:", parseErr.message);
-    detailsObj = {};
-  }
-}
-
-// Ambil semua field sama dengan PDF / MongoDB
-const issue =
-  request.problemDescription ||        // jika ada description utama
-  detailsObj.issue ||                  // jika ada dalam details
-  request.requestType ||               // fallback
-  "Not Provided";
-
-const location =
-  detailsObj.location ||               // kalau dalam details
-  request.requestLocation ||           // kalau ada direct field
-  request.location ||                  // legacy
-  "Not Provided";
-
-const priority =
-  detailsObj.priority ||               // kalau ada dalam details
-  request.priority ||                  // fallback field
-  "Normal";
-
-const sla = request.slaHours || 24;
-const assignedAt = request.assignedAt
-  ? new Date(request.assignedAt).toLocaleString()
-  : "Not Assigned";
-
-// Hantar email
-if (technician.email && technician.email.includes("@")) {
-  try {
-    const dashboardUrl =
-      process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
-
-    const html = `
-<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-  <h2 style="color: #1a73e8;">New Maintenance Task Assigned</h2>
-  <p>Hello <strong>${technician.name}</strong>,</p>
-  <p>You have been assigned a new maintenance request. Please review the details below and start the task as soon as possible.</p>
-  <hr/>
-  <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
-    <tr>
-      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Issue</td>
-      <td style="padding:6px 8px;">${issue}</td>
-    </tr>
-    <tr>
-      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Location</td>
-      <td style="padding:6px 8px;">${location}</td>
-    </tr>
-    <tr>
-      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Priority</td>
-      <td style="padding:6px 8px;">${priority}</td>
-    </tr>
-    <tr>
-      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">SLA</td>
-      <td style="padding:6px 8px;">${sla} hours</td>
-    </tr>
-    <tr>
-      <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Assigned At</td>
-      <td style="padding:6px 8px;">${assignedAt}</td>
-    </tr>
-  </table>
-  <p>
-    <a href="${dashboardUrl}" style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Log Masuk Dashboard</a>
-  </p>
-  <p style="font-size:12px;color:gray;">
-    This is an automated message from E-Approval System.
-  </p>
-</div>
-    `;
-
-    await sendEmail({
-      to: technician.email,
-      subject: `New Maintenance Task Assigned - ${issue}`,
-      html,
-    });
-
-    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
-  } catch (emailErr) {
-    console.error("❌ FAILED: Email sending error", emailErr.message);
-  }
-} else {
-  console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
-}
+    // 🔥 Email notification (sedia ada)
+    // 🔥 Push notification ke technician
+    try {
+      await sendPushNotification(
+        "🛠️ New Maintenance Task Assigned",
+        `Anda telah ditugaskan request: ${request.problemDescription || request.requestType}`,
+        `/technician`
+      );
+    } catch (pushErr) {
+      console.error("❌ Push notification to technician failed:", pushErr.message);
+    }
 
     res.status(200).json({
       message: "Technician assigned successfully.",
@@ -375,10 +287,7 @@ if (technician.email && technician.email.includes("@")) {
 router.put("/:id/recall", authMiddleware, async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
-
     if (!request) return res.status(404).json({ message: "Request not found" });
-
-    console.log("Final Status from DB:", request.finalStatus);
 
     if (request.finalStatus?.trim().toLowerCase() !== "pending") {
       return res.status(400).json({ message: "Only pending request can be recalled" });
@@ -388,7 +297,6 @@ router.put("/:id/recall", authMiddleware, async (req, res) => {
     request.isRecalled = true;
 
     await request.save();
-
     res.json({ message: "Request recalled successfully", request });
   } catch (err) {
     console.error("❌ Recall request error:", err);
@@ -400,26 +308,17 @@ router.put("/:id/recall", authMiddleware, async (req, res) => {
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
-
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    // 🔥 check only recalled request can be edited
-    if (request.status?.trim().toLowerCase() !== STATUS.RECALLED) {
-      return res.status(400).json({ message: "Only recalled request can be edited" });
-    }
-
-    // 🔥 Safe update: whitelist only allowed fields
     const allowedFields = ["title", "description", "finalStatus"];
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) request[field] = req.body[field];
     });
 
-    // 🔥 Reset status after edit (resubmit)
-    request.status = STATUS.PENDING;
+    request.status = "Pending";
     request.isRecalled = false;
 
     await request.save();
-
     res.json({ message: "Request updated & resubmitted", request });
   } catch (err) {
     console.error("❌ Edit request error:", err);
@@ -429,4 +328,3 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
 // ================== EXPORT ROUTER ==================
 export default router;
-
