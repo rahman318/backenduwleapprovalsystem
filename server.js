@@ -11,6 +11,7 @@ import requestRoutes from "./routes/requestRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import testEmailRoutes from "./routes/testEmail.js";
 import verifyRoutes from "./routes/verifyRoutes.js";
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use("/api/requests", requestRoutes);
 app.use("/api/my-requests", requestRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
+app.use("/api", subscriptionRoutes);
 app.use("/verify", verifyRoutes);
 
 // ==========================
