@@ -3,7 +3,7 @@ import Subscription from "../models/Subscription.js";
 
 const router = express.Router();
 
-router.post("/api/save-subscription", async (req, res) => {
+router.post("/save-subscription", async (req, res) => {
   try {
     const subscription = req.body;
     if (!subscription) return res.status(400).json({ msg: "No subscription sent" });
