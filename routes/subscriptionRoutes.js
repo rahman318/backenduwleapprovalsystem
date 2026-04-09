@@ -1,24 +1,23 @@
 import express from "express";
-import Subscription from "../models/Subscription.js";
+import Subscription from "./models/Subscription.js";
 
 const router = express.Router();
 
-// Save new subscription
 router.post("/api/save-subscription", async (req, res) => {
   try {
-    const { subscription, userId } = req.body;
+    const subscription = req.body;
+    if (!subscription) return res.status(400).json({ msg: "No subscription sent" });
 
-    // check duplicate subscription
-    const exist = await Subscription.findOne({ "subscription.endpoint": subscription.endpoint });
-    if (exist) return res.status(200).json({ success: true, message: "Already subscribed" });
+    // Save subscription ke DB
+    const subDoc = new Subscription({ subscription });
+    await subDoc.save();
 
-    const newSub = new Subscription({ subscription, userId });
-    await newSub.save();
+    console.log("✅ Subscription saved to DB:", subDoc._id);
 
-    res.status(200).json({ success: true, message: "Subscription saved" });
+    res.status(201).json({ msg: "Subscription saved" });
   } catch (err) {
-    console.error("Save subscription error:", err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error("❌ Save subscription error:", err);
+    res.status(500).json({ msg: "Internal server error" });
   }
 });
 
