@@ -3,11 +3,11 @@ import mongoose from "mongoose";
 const subscriptionSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User", // rujuk collection user kita
-    required: false, // boleh optional
+    ref: "User",
+    required: false,
   },
   subscription: {
-    type: Object, // push subscription object dari frontend
+    type: mongoose.Schema.Types.Mixed, // safer for JSON object
     required: true,
   },
   createdAt: {
