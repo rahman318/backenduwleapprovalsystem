@@ -4,7 +4,7 @@ import Subscription from "../models/Subscription.js";
 const router = express.Router();
 
 // Save new subscription
-router.post("/save-subscription", async (req, res) => {
+router.post("/api/save-subscription", async (req, res) => {
   try {
     const { subscription, userId } = req.body;
 
