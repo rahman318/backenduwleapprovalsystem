@@ -357,16 +357,6 @@ if (technician.email && technician.email.includes("@")) {
 } else {
   console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
 }
-    // 🔥 Push notification ke technician
-    try {
-      await sendPushNotification(
-        "🛠️ New Maintenance Task Assigned",
-        `Anda telah ditugaskan request: ${request.problemDescription || request.requestType}`,
-        `/technician`
-      );
-    } catch (pushErr) {
-      console.error("❌ Push notification to technician failed:", pushErr.message);
-    }
 
     res.status(200).json({
       message: "Technician assigned successfully.",
