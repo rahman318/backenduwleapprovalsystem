@@ -3,7 +3,7 @@ import Subscription from "../models/Subscription.js";
 
 const router = express.Router();
 
-router.post("/save", async (req, res) => {
+router.post("/save-subscription", async (req, res) => {
   try {
     console.log("📥 Incoming subscription body:", req.body); // <-- tambah log sini
 
