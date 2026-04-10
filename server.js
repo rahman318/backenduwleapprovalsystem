@@ -17,6 +17,12 @@ dotenv.config();
 
 const app = express();
 
+// 👇 GLOBAL LOG (LET HERE)
+app.use((req, res, next) => {
+  console.log("🌐 GLOBAL HIT:", req.method, req.url);
+  next();
+});
+
 // 🧠 Dapatkan __dirname dalam ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
