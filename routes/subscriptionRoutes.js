@@ -5,18 +5,23 @@ const router = express.Router();
 
 router.post("/save-subscription", async (req, res) => {
   try {
-    console.log("📥 Incoming subscription body:", req.body); // <-- tambah log sini
+    console.log("📥 Incoming subscription body:", req.body);
 
-    const subscription = req.body;
-    if (!subscription) return res.status(400).json({ msg: "No subscription sent" });
+    const { userId, subscription } = req.body;
 
-    // Save subscription ke DB
-    const subDoc = new Subscription({ subscription });
-    await subDoc.save();
+    if (!userId || !subscription) {
+      return res.status(400).json({ msg: "Missing userId or subscription" });
+    }
 
-    console.log("✅ Subscription saved to DB:", subDoc._id);
+    const subDoc = await Subscription.findOneAndUpdate(
+      { userId },
+      { subscription },
+      { upsert: true, new: true }
+    );
 
-    res.status(201).json({ msg: "Subscription saved" });
+    console.log("✅ Subscription saved/updated:", subDoc._id);
+
+    res.status(201).json({ msg: "Subscription saved", data: subDoc });
   } catch (err) {
     console.error("❌ Save subscription error:", err);
     res.status(500).json({ msg: "Internal server error" });
