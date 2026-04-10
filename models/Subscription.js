@@ -5,11 +5,10 @@ const subscriptionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-    unique: true
   },
 
   subscription: {
-    endpoint: String,
+    endpoint: { type: String, required: true, unique: true },
     keys: {
       p256dh: String,
       auth: String
