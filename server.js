@@ -44,7 +44,7 @@ app.use("/api/requests", requestRoutes);
 app.use("/api/my-requests", requestRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
-app.use("/api/save-subscription", subscriptionRoutes);
+app.use("/api/subscription", subscriptionRoutes);
 app.use("/verify", verifyRoutes);
 
 // ==========================
