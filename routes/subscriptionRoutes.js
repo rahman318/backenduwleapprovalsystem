@@ -5,11 +5,16 @@ const router = express.Router();
 
 router.post("/save-subscription", async (req, res) => {
   try {
-    console.log("📥 Incoming subscription body:", req.body);
+    console.log("🔥 API HIT SAVE SUBSCRIPTION");
+    console.log("📦 FULL BODY:", req.body);
 
     const { userId, subscription } = req.body;
 
+    console.log("👤 userId:", userId);
+    console.log("📡 subscription:", subscription);
+
     if (!userId || !subscription) {
+      console.log("❌ Missing data");
       return res.status(400).json({ msg: "Missing userId or subscription" });
     }
 
@@ -19,11 +24,12 @@ router.post("/save-subscription", async (req, res) => {
       { upsert: true, new: true }
     );
 
-    console.log("✅ Subscription saved/updated:", subDoc._id);
+    console.log("✅ SAVED DOC:", subDoc);
 
     res.status(201).json({ msg: "Subscription saved", data: subDoc });
+
   } catch (err) {
-    console.error("❌ Save subscription error:", err);
+    console.error("❌ ERROR SAVE SUB:", err);
     res.status(500).json({ msg: "Internal server error" });
   }
 });
