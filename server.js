@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import multer from "multer";
 
 import usersRoutes from "./routes/userRoutes.js";
 import requestRoutes from "./routes/requestRoutes.js";
@@ -17,13 +16,17 @@ dotenv.config();
 
 const app = express();
 
-// 👇 GLOBAL LOG (LET HERE)
+// ==========================
+// 🌐 GLOBAL LOGGER
+// ==========================
 app.use((req, res, next) => {
   console.log("🌐 GLOBAL HIT:", req.method, req.url);
   next();
 });
 
-// 🧠 Dapatkan __dirname dalam ES module
+// ==========================
+// 🧠 PATH FIX (__dirname ES MODULE)
+// ==========================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -32,18 +35,16 @@ const __dirname = path.dirname(__filename);
 // ==========================
 app.use(
   cors({
-    origin: (origin, callback) => {
-      callback(null, true); // allow semua origin
-    },
+    origin: "*",
     credentials: true,
   })
 );
 
-app.use(express.json({ limit: "10mb" })); // untuk parse JSON besar
-app.use(express.urlencoded({ extended: true })); // untuk form data
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
 
 // ==========================
-// 🚀 ROUTES
+// 🚀 API ROUTES
 // ==========================
 app.use("/api/users", usersRoutes);
 app.use("/api/requests", requestRoutes);
@@ -54,29 +55,36 @@ app.use("/api/subscription", subscriptionRoutes);
 app.use("/verify", verifyRoutes);
 
 // ==========================
-// ⚙️ DATABASE CONNECTION
+// ⚙️ DATABASE
 // ==========================
 const MONGO_URI = process.env.MONGO_URI;
 
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(MONGO_URI);
+mongoose
+  .connect(MONGO_URI)
+  .then((conn) => {
     console.log(`✅ MongoDB connected: ${conn.connection.name}`);
-  } catch (err) {
+  })
+  .catch((err) => {
     console.error("❌ MongoDB connection error:", err.message);
-    process.exit(1);
-  }
-};
-
-connectDB();
+  });
 
 // ==========================
-// 🖥️ START SERVER
+// 🖥️ SERVE REACT BUILD (🔥 IMPORTANT FIX)
+// ==========================
+
+// Serve static files from React build
+app.use(express.static(path.join(__dirname, "dist")));
+
+// SPA fallback (IMPORTANT - must be LAST)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+
+// ==========================
+// 🚀 START SERVER
 // ==========================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
 
-
-
-
-
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
