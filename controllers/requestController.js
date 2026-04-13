@@ -614,9 +614,9 @@ try {
 
   const technician = await User.findById(request.technicianId);
 
-  if (technician?.pushSubscription) {
+  if (technician?.subscriptions) {
     await sendPushNotification(
-      technician.pushSubscription,
+      technician.subscriptions,
       "Task Baru 🔧",
       `Anda ditugaskan maintenance: ${issue}`,
       `/technician/tasks/${request._id}`
