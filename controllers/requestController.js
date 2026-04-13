@@ -611,18 +611,22 @@ if (technician.email && technician.email.includes("@")) {
 
 // ================= PUSH NOTIFICATION TO TECHNICIAN =================
 try {
+  const technician = await User.findById(technicianId);
 
-  const technician = await User.findById(request.technicianId);
+  console.log("📡 Technician found:", technician?.email);
+  console.log("📡 Subscription:", technician?.subscription);
 
-  if (technician?.subscription) {
+  if (technician?.subscription?.endpoint) {
     await sendPushNotification(
       technician.subscription,
       "Task Baru 🔧",
       `Anda ditugaskan maintenance: ${issue}`,
       `/technician/tasks/${request._id}`
     );
+
+    console.log("✅ Push notification sent");
   } else {
-    console.warn("⚠️ Technician tiada push subscription");
+    console.warn("⚠️ Technician tiada subscription");
   }
 
 } catch (pushErr) {
