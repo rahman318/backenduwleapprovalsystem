@@ -4,6 +4,7 @@ import User from "../models/user.js";
 import { sendEmail } from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
+import { sendPushNotification } from "../utils/sendPush.js";
 import multer from "multer";
 
 // ================== MULTER SETUP ==================
@@ -228,6 +229,23 @@ export const createRequest = async (req, res) => {
       console.error("❌ Error send email to requestor:", emailErr.message);
     }
 
+    // ================= PUSH NOTIFICATION TO APPROVERS =================
+try {
+  const approvers = populatedRequest.approvals;
+
+  for (const approval of approvers) {
+    if (!approval.approverId) continue;
+
+    await sendPushNotification(
+      "Permohonan Baru 🔔",
+      `Permohonan ${requestType} dari ${staffName}`,
+      `/approver/requests/${populatedRequest._id}`
+    );
+  }
+} catch (pushErr) {
+  console.error("❌ Push error (createRequest):", pushErr.message);
+}
+
     res.status(201).json(populatedRequest);
 
   } catch (err) {
@@ -342,6 +360,21 @@ export const approveLevel = async (req, res) => {
       }
     }
 
+    // ================= PUSH NOTIFICATION TO STAFF =================
+try {
+  const staffEmail = request.userId?.email;
+
+  if (staffEmail) {
+    await sendPushNotification(
+      "Permohonan Diluluskan ✅",
+      `Permohonan anda telah diluluskan`,
+      `/my-requests/${request._id}`
+    );
+  }
+} catch (pushErr) {
+  console.error("❌ Push error (approveLevel):", pushErr.message);
+}
+
     res.status(200).json({ message: "Level approved successfully", request });
 
   } catch (err) {
@@ -455,6 +488,21 @@ export const rejectLevel = async (req, res) => {
       console.error("❌ Error generate/send rejected PDF/email:", emailErr.message);
     }
 
+    // ================= PUSH NOTIFICATION (REJECT) =================
+try {
+  const staffEmail = request.userId?.email;
+
+  if (staffEmail) {
+    await sendPushNotification(
+      "Permohonan Ditolak ❌",
+      `Permohonan anda telah ditolak`,
+      `/my-requests/${request._id}`
+    );
+  }
+} catch (pushErr) {
+  console.error("❌ Push error (rejectLevel):", pushErr.message);
+}
+
     res.status(200).json({ message: "Level rejected & email sent to staff", request });
 
   } catch (err) {
@@ -559,6 +607,19 @@ if (technician.email && technician.email.includes("@")) {
   }
 } else {
   console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+}
+
+// ================= PUSH NOTIFICATION TO TECHNICIAN =================
+try {
+  if (technician.email) {
+    await sendPushNotification(
+      "Task Baru 🔧",
+      `Anda ditugaskan maintenance: ${issue}`,
+      `/technician/tasks/${request._id}`
+    );
+  }
+} catch (pushErr) {
+  console.error("❌ Push error (assignTechnician):", pushErr.message);
 }
 
 res.status(200).json({
@@ -716,6 +777,21 @@ export const technicianUpdateStatus = async (req, res) => {
         console.error(`❌ Failed to send email to ${approval.approverId.email}:`, emailErr.message);
       }
     }
+
+    // ================== PUSH NOTIFICATION (STAFF) ==================
+try {
+  if (status === "Completed" && request.userId?.email) {
+    await sendPushNotification(
+      "Maintenance Selesai 🎉",
+      `Permohonan anda telah disiapkan oleh technician`,
+      `/my-requests/${request._id}`
+    );
+
+    console.log("📲 Push notification sent to staff");
+  }
+} catch (pushErr) {
+  console.error("❌ Push error (technicianUpdateStatus):", pushErr.message);
+}
 
     res.status(200).json({ message: `Request updated to ${status} & approvers notified`, request });
 
