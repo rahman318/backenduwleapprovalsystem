@@ -1,44 +1,60 @@
 import webpush from "web-push";
 import Subscription from "../models/Subscription.js";
 
-// function hantar notification ke semua subscriber
-export const sendPushNotification = async (title, body, url) => {
-  try {
-    // ✅ log env VAPID key
-    console.log("🔹 Backend VAPID PUBLIC KEY:", process.env.VAPID_PUBLIC_KEY);
-    console.log("🔹 Backend VAPID PRIVATE KEY:", process.env.VAPID_PRIVATE_KEY);
+// ===================== VAPID SETUP (ONLY ONCE) =====================
+webpush.setVapidDetails(
+  "mailto:rahman_uwl@edenzil.com",
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
 
-    // ✅ check key sebelum set
-    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-      console.error("❌ VAPID key missing! Push notifications disabled.");
+// ===================== SEND PUSH =====================
+export const sendPushNotification = async (title, body, url = "/") => {
+  try {
+    if (
+      !process.env.VAPID_PUBLIC_KEY ||
+      !process.env.VAPID_PRIVATE_KEY
+    ) {
+      console.error("❌ VAPID keys missing");
       return;
     }
 
-    // setup VAPID (safe, masa function dipanggil)
-    webpush.setVapidDetails(
-      "mailto:rahman_uwl@edenzil.com",
-      process.env.VAPID_PUBLIC_KEY,
-      process.env.VAPID_PRIVATE_KEY
-    );
-
-    // ambil semua subscription
     const subscriptions = await Subscription.find();
-    console.log(`🔹 Found ${subscriptions.length} subscriptions`);
 
-    // loop setiap subscription
+    console.log(`🔔 Push start → total subs: ${subscriptions.length}`);
+
     for (const sub of subscriptions) {
+      // ===================== VALIDATION =====================
+      if (!sub?.subscription?.endpoint) {
+        console.log("⚠️ Invalid subscription skipped:", sub._id);
+        continue;
+      }
+
+      const payload = JSON.stringify({
+        title,
+        body,
+        url,
+      });
+
       try {
-        console.log("🔹 Sending push to subscription:", sub._id);
-        await webpush.sendNotification(
-          sub.subscription,
-          JSON.stringify({ title, body, url })
-        );
-        console.log("✅ Push sent successfully:", sub._id);
+        await webpush.sendNotification(sub.subscription, payload);
+
+        console.log("✅ Push sent →", sub._id);
+
       } catch (err) {
-        console.error("❌ Push failed for subscription:", sub._id, err.message);
+        console.error("❌ Push failed →", sub._id, err.message);
+
+        // ===================== CLEAN INVALID SUB =====================
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await Subscription.deleteOne({ _id: sub._id });
+          console.log("🧹 Removed expired subscription:", sub._id);
+        }
       }
     }
+
+    console.log("🚀 Push batch completed");
+
   } catch (err) {
-    console.error("❌ Send push notification error:", err.message);
+    console.error("❌ sendPushNotification error:", err.message);
   }
 };
