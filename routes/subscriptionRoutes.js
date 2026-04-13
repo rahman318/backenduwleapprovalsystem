@@ -3,7 +3,7 @@ import Subscription from "../models/Subscription.js";
 
 const router = express.Router();
 
-router.post("/api/subscription", async (req, res) => {
+router.post("/subscription", async (req, res) => {
   console.log("====================================");
   console.log("🔥 HIT SAVE SUBSCRIPTION ROUTE");
   console.log("📅 TIME:", new Date().toISOString());
