@@ -611,6 +611,9 @@ if (technician.email && technician.email.includes("@")) {
 
 // ================= PUSH NOTIFICATION TO TECHNICIAN =================
 try {
+
+  const technician.email = request.userId?.email;
+  
   if (technician.email) {
     await sendPushNotification(
       "Task Baru 🔧",
