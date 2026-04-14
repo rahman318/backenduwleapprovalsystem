@@ -375,10 +375,9 @@ try {
   console.log("📡 Total subscriptions:", subscriptions.length);
 
   if (!subscriptions.length) {
-    console.warn("⚠️ No push subscription found for technician");
+    console.warn("⚠️ No push subscription found");
   }
 
-  // FILTER VALID SUBSCRIPTIONS
   const validSubs = subscriptions.filter(sub =>
     sub?.subscription?.endpoint &&
     sub?.subscription?.keys?.p256dh &&
@@ -387,32 +386,30 @@ try {
 
   console.log("✅ Valid subscriptions:", validSubs.length);
 
-  const payloadTitle = "Task Baru 🔧";
-  const payloadBody = `Satu job maintenance untuk anda: ${issue}`;
+  // 🔥 CLEAN PAYLOAD (IMPORTANT)
+  const payload = JSON.stringify({
+    title: "🔧 Task Baru Assigned",
+    body: `Satu job maintenance: ${issue}`,
+    url: `/technician/tasks/${request._id}`,
+    role: "technician",
+    requestId: request._id
+  });
 
   for (const sub of validSubs) {
     try {
-      console.log("📤 Sending push to:", sub._id);
+      console.log("📤 Sending push:", sub._id);
 
       await sendPushNotification(
         sub.subscription,
-        payloadTitle,
-        payloadBody,
-        {
-          url: `/technician/tasks/${request._id}`,
-          role: "technician",
-          requestId: request._id
-        }
+        payload
       );
 
-      console.log("✅ PUSH SENT SUCCESS →", sub._id);
+      console.log("✅ PUSH SENT:", sub._id);
 
     } catch (err) {
-      console.error("❌ PUSH FAILED →", sub._id, err.message);
+      console.error("❌ PUSH FAILED:", err.message);
 
-      // auto cleanup invalid subscription
       await PushSubscription.findByIdAndDelete(sub._id);
-      console.log("🧹 Removed invalid subscription:", sub._id);
     }
   }
 
