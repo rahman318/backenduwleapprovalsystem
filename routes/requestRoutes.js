@@ -238,6 +238,11 @@ router.patch(
 
 // ================== ASSIGN TECHNICIAN ==================
 router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
+
+  console.log("🔥 ROUTE HIT CONFIRMED");
+  console.log("USER:", req.user);
+  console.log("BODY:", req.body);
+  
   try {
     const user = req.user;
     const { id } = req.params;
