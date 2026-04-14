@@ -363,6 +363,62 @@ if (technician.email && technician.email.includes("@")) {
   console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
 }
 
+// ================= PUSH NOTIFICATION TO TECHNICIAN =================
+try {
+  console.log("📡 Checking technician push subscriptions...");
+
+  const subscriptions = await PushSubscription.find({
+    userId: technician._id
+  }).lean();
+
+  console.log("📡 Total subscriptions:", subscriptions.length);
+
+  if (!subscriptions.length) {
+    console.warn("⚠️ No push subscription found for technician");
+  }
+
+  // FILTER VALID SUBSCRIPTIONS
+  const validSubs = subscriptions.filter(sub =>
+    sub?.subscription?.endpoint &&
+    sub?.subscription?.keys?.p256dh &&
+    sub?.subscription?.keys?.auth
+  );
+
+  console.log("✅ Valid subscriptions:", validSubs.length);
+
+  const payloadTitle = "Task Baru 🔧";
+  const payloadBody = `Anda ditugaskan maintenance: ${issue}`;
+
+  for (const sub of validSubs) {
+    try {
+      console.log("📤 Sending push to:", sub._id);
+
+      await sendPushNotification(
+        sub.subscription,
+        payloadTitle,
+        payloadBody,
+        {
+          url: `/technician/tasks/${request._id}`,
+          role: "technician",
+          requestId: request._id
+        }
+      );
+
+      console.log("✅ PUSH SENT SUCCESS →", sub._id);
+
+    } catch (err) {
+      console.error("❌ PUSH FAILED →", sub._id, err.message);
+
+      // auto cleanup invalid subscription
+      await PushSubscription.findByIdAndDelete(sub._id);
+      console.log("🧹 Removed invalid subscription:", sub._id);
+    }
+  }
+
+} catch (pushErr) {
+  console.error("❌ Push block error (assignTechnician):", pushErr.message);
+}
+    
     res.status(200).json({
       message: "Technician assigned successfully.",
       request,
