@@ -320,9 +320,11 @@ export const approveLevel = async (req, res) => {
 
     // ===== ASSIGN TECHNICIAN FOR MAINTENANCE =====
     if (request.requestType === "Maintenance" && req.body.assignedTechnician) {
-      request.assignedTechnician = req.body.assignedTechnician;
-      if (request.maintenanceStatus === "Submitted") request.maintenanceStatus = "In Progress";
-    }
+  request.assignedTechnician = req.body.assignedTechnician;
+
+  // 🔥 JANGAN terus In Progress
+  request.maintenanceStatus = "Submitted";
+}
 
     // ===== CHECK ALL APPROVED =====
     const allApproved = request.approvals.every(a => a.status === "Approved");
