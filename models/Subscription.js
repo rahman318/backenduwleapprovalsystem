@@ -10,7 +10,7 @@ const subscriptionSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["technician", "approver", "admin"],
+      enum: ["technician", "approver", "admin", "staff"],
       required: true
     },
 
