@@ -8,46 +8,59 @@ router.post("/save-subscription", async (req, res) => {
   console.log("🔥 HIT SAVE SUBSCRIPTION ROUTE");
   console.log("📅 TIME:", new Date().toISOString());
 
-  console.log("📥 HEADERS:", req.headers);
-  console.log("📦 BODY RAW:", req.body);
-
-  const { userId, subscription } = req.body || {};
-
-  console.log("👤 USER ID:", userId);
-  console.log("🔔 SUBSCRIPTION:", subscription);
-
-  if (!userId) {
-    console.log("❌ ERROR: userId missing");
-  }
-
-  if (!subscription) {
-    console.log("❌ ERROR: subscription missing");
-  }
-
   try {
-    console.log("💾 TRYING TO SAVE INTO MONGODB...");
+    const { userId, role, deviceId, subscription } = req.body || {};
 
-    const saved = await Subscription.create({
-      userId,
-      subscription,
-    });
+    console.log("👤 USER ID:", userId);
+    console.log("🎭 ROLE:", role);
+    console.log("📱 DEVICE ID:", deviceId);
+    console.log("🔔 SUBSCRIPTION:", subscription);
 
-    console.log("✅ SUCCESS SAVED TO DB:");
+    // ❌ VALIDATION
+    if (!userId || !role || !deviceId || !subscription) {
+      console.log("❌ Missing required fields");
+
+      return res.status(400).json({
+        error: "userId, role, deviceId, subscription required"
+      });
+    }
+
+    console.log("💾 UPSERTING INTO MONGODB...");
+
+    // 🔥 PRO FIX: UPSERT (NO DUPLICATE)
+    const saved = await Subscription.findOneAndUpdate(
+      { userId, role, deviceId },
+      {
+        userId,
+        role,
+        deviceId,
+        subscription
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    console.log("✅ SAVED SUCCESS:");
     console.log(saved);
 
     console.log("====================================");
 
     res.status(200).json({
-      message: "Saved successfully",
-      data: saved,
+      message: "Subscription saved successfully",
+      data: saved
     });
+
   } catch (err) {
     console.log("💀 MONGODB ERROR:");
-    console.log(err);
+    console.log(err.message);
+
     console.log("====================================");
 
     res.status(500).json({
-      error: err.message,
+      error: err.message
     });
   }
 });
