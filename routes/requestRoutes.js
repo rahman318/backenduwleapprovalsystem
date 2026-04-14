@@ -388,7 +388,7 @@ try {
   console.log("✅ Valid subscriptions:", validSubs.length);
 
   const payloadTitle = "Task Baru 🔧";
-  const payloadBody = `Anda ditugaskan maintenance: ${issue}`;
+  const payloadBody = `Satu job maintenance untuk anda: ${issue}`;
 
   for (const sub of validSubs) {
     try {
