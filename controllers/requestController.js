@@ -5,6 +5,7 @@ import { sendEmail } from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
 import { sendPushNotification } from "../utils/sendPush.js";
+import PushSubscription from "../models/Subscription.js";
 import multer from "multer";
 
 // ================== MULTER SETUP ==================
@@ -611,11 +612,8 @@ if (technician.email && technician.email.includes("@")) {
 
 // ================= PUSH NOTIFICATION TO TECHNICIAN =================
 try {
-  const technician = await User.findById(technicianId);
+  console.log("📡 Checking technician subscriptions...");
 
-  console.log("📡 Technician found:", technician?.email);
-
-  // 🔥 AMBIL DARI COLLECTION SUBSCRIPTIONS (BUKAN USER)
   const subscriptions = await PushSubscription.find({
     userId: technicianId
   });
@@ -623,13 +621,14 @@ try {
   console.log("📡 Total subscriptions:", subscriptions.length);
 
   if (!subscriptions.length) {
-    console.warn("⚠️ No push subscriptions found for technician");
+    console.warn("⚠️ No subscriptions found");
     return;
   }
 
-  // 🔥 LOOP SEMUA DEVICE
   for (const sub of subscriptions) {
     try {
+      console.log("📤 Sending push to:", sub._id);
+
       await sendPushNotification(
         sub.subscription,
         "Task Baru 🔧",
@@ -642,7 +641,6 @@ try {
     } catch (err) {
       console.error("❌ Push failed →", sub._id, err.message);
 
-      // 🧹 auto cleanup expired subscription
       await PushSubscription.findByIdAndDelete(sub._id);
       console.log("🧹 Removed expired subscription:", sub._id);
     }
