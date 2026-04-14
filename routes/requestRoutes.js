@@ -19,6 +19,7 @@ import {
 } from "../controllers/requestController.js";
 import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
 import { sendPushNotification } from "../utils/sendPush.js"; // 🔥 Inject push
+import PushSubscription from "../models/Subscription.js";
 
 const router = express.Router();
 
