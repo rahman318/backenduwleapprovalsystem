@@ -616,16 +616,24 @@ try {
 
   const subscriptions = await PushSubscription.find({
     userId: technicianId
-  });
+  }).lean();
 
   console.log("📡 Total subscriptions:", subscriptions.length);
 
   if (!subscriptions.length) {
-    console.warn("⚠️ No subscriptions found");
-    return;
+    console.warn("⚠️ No subscriptions found for technician");
   }
 
-  for (const sub of subscriptions) {
+  // 🔥 FILTER VALID SUBSCRIPTION
+  const validSubs = subscriptions.filter(sub =>
+    sub?.subscription?.endpoint &&
+    sub?.subscription?.keys?.p256dh &&
+    sub?.subscription?.keys?.auth
+  );
+
+  console.log("✅ Valid subscriptions:", validSubs.length);
+
+  for (const sub of validSubs) {
     try {
       console.log("📤 Sending push to:", sub._id);
 
@@ -636,13 +644,14 @@ try {
         `/technician/tasks/${request._id}`
       );
 
-      console.log("✅ Push sent →", sub._id);
+      console.log("✅ Push SUCCESS →", sub._id);
 
     } catch (err) {
-      console.error("❌ Push failed →", sub._id, err.message);
+      console.error("❌ Push FAILED →", sub._id, err.message);
 
+      // 🔥 AUTO CLEAN INVALID SUB
       await PushSubscription.findByIdAndDelete(sub._id);
-      console.log("🧹 Removed expired subscription:", sub._id);
+      console.log("🧹 Removed invalid subscription:", sub._id);
     }
   }
 
