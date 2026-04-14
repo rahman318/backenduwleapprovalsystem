@@ -36,7 +36,6 @@ const subscriptionSchema = new mongoose.Schema(
 // 🔥 prevent duplicate per device
 subscriptionSchema.index(
   { userId: 1, role: 1, deviceId: 1 },
-  { unique: true }
 );
 
 const Subscription = mongoose.model("Subscription", subscriptionSchema);
