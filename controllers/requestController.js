@@ -614,19 +614,38 @@ try {
   const technician = await User.findById(technicianId);
 
   console.log("📡 Technician found:", technician?.email);
-  console.log("📡 Subscription:", technician?.subscription);
 
-  if (technician?.subscription?.endpoint) {
-    await sendPushNotification(
-      technician.subscription,
-      "Task Baru 🔧",
-      `Anda ditugaskan maintenance: ${issue}`,
-      `/technician/tasks/${request._id}`
-    );
+  // 🔥 AMBIL DARI COLLECTION SUBSCRIPTIONS (BUKAN USER)
+  const subscriptions = await PushSubscription.find({
+    userId: technicianId
+  });
 
-    console.log("✅ Push notification sent");
-  } else {
-    console.warn("⚠️ Technician tiada subscription");
+  console.log("📡 Total subscriptions:", subscriptions.length);
+
+  if (!subscriptions.length) {
+    console.warn("⚠️ No push subscriptions found for technician");
+    return;
+  }
+
+  // 🔥 LOOP SEMUA DEVICE
+  for (const sub of subscriptions) {
+    try {
+      await sendPushNotification(
+        sub.subscription,
+        "Task Baru 🔧",
+        `Anda ditugaskan maintenance: ${issue}`,
+        `/technician/tasks/${request._id}`
+      );
+
+      console.log("✅ Push sent →", sub._id);
+
+    } catch (err) {
+      console.error("❌ Push failed →", sub._id, err.message);
+
+      // 🧹 auto cleanup expired subscription
+      await PushSubscription.findByIdAndDelete(sub._id);
+      console.log("🧹 Removed expired subscription:", sub._id);
+    }
   }
 
 } catch (pushErr) {
