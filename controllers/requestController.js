@@ -515,6 +515,9 @@ try {
 };
 
 // ================== ASSIGN TECHNICIAN ==================
+
+console.log("🔥 ASSIGN TECHNICIAN ROUTE HIT");
+
 export const assignTechnician = async (req, res) => {
   try {
     const user = req.user;
@@ -612,6 +615,8 @@ if (technician.email && technician.email.includes("@")) {
   console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
 }
 
+console.log("🚀 BEFORE PUSH BLOCK");
+    
 // ================= PUSH NOTIFICATION TO TECHNICIAN =================
 try {
   console.log("📡 Checking technician subscriptions...");
