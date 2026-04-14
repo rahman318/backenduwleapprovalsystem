@@ -640,11 +640,15 @@ try {
       console.log("📤 Sending push to:", sub._id);
 
       await sendPushNotification(
-        sub.subscription,
-        "Task Baru 🔧",
-        `Anda ditugaskan maintenance: ${issue}`,
-        `/technician/tasks/${request._id}`
-      );
+  sub.subscription,
+  "Task Baru 🔧",
+  `Anda ditugaskan maintenance: ${issue}`,
+  {
+    url: `/technician/tasks/${request._id}`,
+    role: "technician",
+    requestId: request._id
+  }
+);
 
       console.log("✅ Push SUCCESS →", sub._id);
 
