@@ -126,6 +126,7 @@ export const createRequest = async (req, res) => {
     const populatedRequest = await Request.findById(newRequest._id)
       .populate("userId", "username department email")
       .populate("approvals.approverId", "username department email");
+      .populate("assignedTechnician", "name email department"); // 🔥 TAMBAH NI
 
     // -------- GENERATE PDF BUFFER --------
     let pdfBuffer = null;
