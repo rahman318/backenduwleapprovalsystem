@@ -239,44 +239,31 @@ router.patch(
 
 // ================== ASSIGN TECHNICIAN ==================
 router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
+
   console.log("🔥 ROUTE HIT CONFIRMED");
   console.log("USER:", req.user);
   console.log("BODY:", req.body);
-
+  
   try {
     const user = req.user;
     const { id } = req.params;
     const { technicianId } = req.body;
 
-    if (!technicianId)
-      return res.status(400).json({ message: "TechnicianId diperlukan" });
+    if (!technicianId) return res.status(400).json({ message: "TechnicianId diperlukan" });
+    if (user.role.toLowerCase() !== "approver") return res.status(403).json({ message: "Hanya Approver boleh assign." });
 
-    if (user.role.toLowerCase() !== "approver")
-      return res.status(403).json({ message: "Hanya Approver boleh assign." });
+    const request = await Request.findById(id).exec();
+    if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
 
-    const request = await Request.findById(id);
-    if (!request)
-      return res.status(404).json({ message: "Request tidak dijumpai" });
+    const technician = await User.findById(technicianId).exec();
+    if (!technician) return res.status(404).json({ message: "Technician tidak dijumpai" });
+    if (technician.role.toLowerCase() !== "technician") return res.status(400).json({ message: "User bukan technician" });
 
-    const technician = await User.findById(technicianId);
-    if (!technician)
-      return res.status(404).json({ message: "Technician tidak dijumpai" });
-
-    if (technician.role.toLowerCase() !== "technician")
-      return res.status(400).json({ message: "User bukan technician" });
-
-    // ================= UPDATE REQUEST =================
     request.assignedTechnician = technician._id;
     request.slaHours = request.priority === "Urgent" ? 4 : 24;
     request.finalStatus = "Approved";
     request.maintenanceStatus = "Submitted";
     request.assignedAt = new Date();
-
-    // ================= POPULATE AFTER SAVE (IMPORTANT 🔥) =================
-    const updatedRequest = await Request.findById(id)
-      .populate("assignedTechnician", "name email department")
-      .populate("userId", "username email department")
-      .populate("approvals.approverId", "username email department");
 
     await request.save();
 
