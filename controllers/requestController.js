@@ -291,13 +291,12 @@ export const getRequestsForTechnician = async (req, res) => {
   try {
     const technicianId = req.user._id;
     const requests = await Request.find({
-  assignedTechnician: technicianId,
-  maintenanceStatus: { $in: ["Submitted", "In Progress"] },
-})
-  .populate("userId", "username department email")
-  .populate("assignedTechnician", "username email department") // ✅ TAMBAH NI
-  .populate("approvals.approverId", "username department email")
-  .sort({ createdAt: -1 });
+      assignedTechnician: technicianId,
+      maintenanceStatus: { $in: ["Submitted", "In Progress"] },
+    })
+      .populate("userId", "username department email")
+      .populate("approvals.approverId", "username department email")
+      .sort({ createdAt: -1 });
     res.status(200).json(requests);
   } catch (err) {
     console.error("❌ getTechnicianRequests error:", err.message);
