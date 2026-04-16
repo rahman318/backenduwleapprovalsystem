@@ -290,8 +290,7 @@ export const getMyRequests = async (req, res) => {
 export const getRequestsForTechnician = async (req, res) => {
   try {
     const technicianId = req.user._id;
-    const requests = await Request.find({
-      assignedTechnician: technicianId,
+  
       maintenanceStatus: { $in: ["Submitted", "In Progress"] },
     })
       .populate("userId", "username department email")
