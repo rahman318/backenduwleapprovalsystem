@@ -260,9 +260,10 @@ try {
 export const getRequests = async (req, res) => {
   try {
     const requests = await Request.find()
-      .populate("userId", "username department email")
-      .populate("approvals.approverId", "username department email")
-      .sort({ createdAt: -1 });
+  .populate("userId", "username department email")
+  .populate("assignedTechnician", "username email department") // ✅ TAMBAH NI
+  .populate("approvals.approverId", "username department email")
+  .sort({ createdAt: -1 });
     res.status(200).json(requests);
   } catch (err) {
     console.error("❌ getRequests error:", err.message);
@@ -274,8 +275,9 @@ export const getRequests = async (req, res) => {
 export const getMyRequests = async (req, res) => {
   try {
     const requests = await Request.find({ userId: req.user.id })
-      .populate("approvals.approverId", "name email department") // populate siap info approver
-      .sort({ createdAt: -1 }); // latest first
+  .populate("assignedTechnician", "username email department") // ✅ TAMBAH NI
+  .populate("approvals.approverId", "name email department")
+  .sort({ createdAt: -1 });
 
     res.json(requests);
   } catch (error) {
@@ -289,12 +291,13 @@ export const getRequestsForTechnician = async (req, res) => {
   try {
     const technicianId = req.user._id;
     const requests = await Request.find({
-      assignedTechnician: technicianId,
-      maintenanceStatus: { $in: ["Submitted", "In Progress"] },
-    })
-      .populate("userId", "username department email")
-      .populate("approvals.approverId", "username department email")
-      .sort({ createdAt: -1 });
+  assignedTechnician: technicianId,
+  maintenanceStatus: { $in: ["Submitted", "In Progress"] },
+})
+  .populate("userId", "username department email")
+  .populate("assignedTechnician", "username email department") // ✅ TAMBAH NI
+  .populate("approvals.approverId", "username department email")
+  .sort({ createdAt: -1 });
     res.status(200).json(requests);
   } catch (err) {
     console.error("❌ getTechnicianRequests error:", err.message);
