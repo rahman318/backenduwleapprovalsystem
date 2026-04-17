@@ -290,25 +290,54 @@ router.patch(
 router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
 
   console.log("🔥 ROUTE HIT CONFIRMED");
-  console.log("USER:", req.user);
-  console.log("BODY:", req.body);
-  
+  console.log("👤 USER:", req.user);
+  console.log("📦 BODY:", req.body);
+
   try {
     const user = req.user;
     const { id } = req.params;
-    const { technicianId } = req.body;
+    const { technicianIds } = req.body; // ✅ array now
 
-    if (!technicianId) return res.status(400).json({ message: "TechnicianId diperlukan" });
-    if (user.role.toLowerCase() !== "approver") return res.status(403).json({ message: "Hanya Approver boleh assign." });
+    // ================== VALIDATION ==================
+    if (!Array.isArray(technicianIds) || technicianIds.length === 0) {
+      return res.status(400).json({
+        message: "Sila pilih sekurang-kurangnya seorang technician",
+      });
+    }
 
-    const request = await Request.findById(id).exec();
-    if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
+    if (user.role.toLowerCase() !== "approver") {
+      return res.status(403).json({
+        message: "Hanya Approver boleh assign.",
+      });
+    }
 
-    const technician = await User.findById(technicianId).exec();
-    if (!technician) return res.status(404).json({ message: "Technician tidak dijumpai" });
-    if (technician.role.toLowerCase() !== "technician") return res.status(400).json({ message: "User bukan technician" });
+    // ================== FIND REQUEST ==================
+    const request = await Request.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        message: "Request tidak dijumpai",
+      });
+    }
 
-    request.assignedTechnician = technician._id;
+    console.log("📄 REQUEST FOUND:", request._id);
+
+    // ================== VALIDATE TECHNICIANS ==================
+    const technicians = await User.find({
+      _id: { $in: technicianIds },
+      role: "technician",
+    });
+
+    console.log("👨‍🔧 VALID TECHNICIANS:", technicians);
+
+    if (!technicians.length) {
+      return res.status(400).json({
+        message: "Tiada technician sah dijumpai",
+      });
+    }
+
+    // ================== ASSIGN MULTIPLE ==================
+    request.assignedTechnician = technicians.map((t) => t._id);
+
     request.slaHours = request.priority === "Urgent" ? 4 : 24;
     request.finalStatus = "Approved";
     request.maintenanceStatus = "Submitted";
