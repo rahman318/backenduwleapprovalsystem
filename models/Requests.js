@@ -67,12 +67,15 @@ const requestSchema = new mongoose.Schema(
 
         // ================= Maintenance Flow =================
 assignedTechnician: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "User",
-  default: null,
+  type: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  default: [],
 },
 
-  
 assignedAt: { type: Date, default: null },
 
 slaHours: { type: Number, default: 24 },
