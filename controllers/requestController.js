@@ -262,6 +262,7 @@ export const getRequests = async (req, res) => {
     const requests = await Request.find()
       .populate("userId", "username department email")
       .populate("approvals.approverId", "username department email")
+      .populate("assignedTechnician", "username name email") // ✅ ADD THIS
       .sort({ createdAt: -1 });
     res.status(200).json(requests);
   } catch (err) {
