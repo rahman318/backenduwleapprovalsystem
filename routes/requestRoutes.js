@@ -346,9 +346,9 @@ router.put("/:id/assign-technician", authMiddleware, async (req, res) => {
     await request.save();
 
     // ================== EMAIL NOTIFICATION FIXED ==================
-console.log("📧 Preparing to send email notification to technician...");
+console.log("📧 Preparing to send email notification to technicians...");
 
-// Parse details jika ia string
+// Parse details jika string
 let detailsObj = {};
 if (request.details) {
   try {
@@ -362,34 +362,41 @@ if (request.details) {
   }
 }
 
-// Ambil semua field sama dengan PDF / MongoDB
+// Ambil data
 const issue =
-  request.problemDescription ||        // jika ada description utama
-  detailsObj.issue ||                  // jika ada dalam details
-  request.requestType ||               // fallback
+  request.problemDescription ||
+  detailsObj.issue ||
+  request.requestType ||
   "Not Provided";
 
 const location =
-  detailsObj.location ||               // kalau dalam details
-  request.requestLocation ||           // kalau ada direct field
-  request.location ||                  // legacy
+  detailsObj.location ||
+  request.requestLocation ||
+  request.location ||
   "Not Provided";
 
 const priority =
-  detailsObj.priority ||               // kalau ada dalam details
-  request.priority ||                  // fallback field
+  detailsObj.priority ||
+  request.priority ||
   "Normal";
 
 const sla = request.slaHours || 24;
+
 const assignedAt = request.assignedAt
   ? new Date(request.assignedAt).toLocaleString()
   : "Not Assigned";
 
-// Hantar email
-if (technician.email && technician.email.includes("@")) {
-  try {
-    const dashboardUrl =
-      process.env.DASHBOARD_URL || "https://uwleapprovalsystem.onrender.com";
+// ================= EMAIL LOOP (FIXED) =================
+if (Array.isArray(technicianIds) && technicianIds.length > 0) {
+  await Promise.all(
+    technicianIds.map(async (techId) => {
+      const technician = await User.findById(techId);
+
+      if (technician?.email && technician.email.includes("@")) {
+        try {
+          const dashboardUrl =
+            process.env.DASHBOARD_URL ||
+            "https://uwleapprovalsystem.onrender.com";
 
     const html = `
 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -429,10 +436,19 @@ if (technician.email && technician.email.includes("@")) {
     `;
 
     await sendEmail({
-      to: technician.email,
-      subject: `New Maintenance Task Assigned - ${issue}`,
-      html,
-    });
+            to: technician.email,
+            subject: "Task Baru Assigned 🔧",
+            html: `
+              <h3>Hi ${technician.name || "Technician"}</h3>
+              <p><b>Issue:</b> ${issue}</p>
+              <p><b>Location:</b> ${location}</p>
+              <p><b>Priority:</b> ${priority}</p>
+              <p><b>SLA:</b> ${sla} hours</p>
+              <p><b>Assigned At:</b> ${assignedAt}</p>
+              <br/>
+              <a href="${dashboardUrl}">Go to Dashboard</a>
+            `,
+          });
 
     console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
   } catch (emailErr) {
