@@ -11,6 +11,7 @@ import {
   createRequest,
   getRequests,
   getMyRequests,
+  getRequestsForTechnician,
   approveLevel,
   rejectLevel,
   deleteRequestById,
