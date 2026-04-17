@@ -141,30 +141,78 @@ router.get("/:id/pdf", async (req, res) => {
 router.get("/technician", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
-    if (user.role !== "technician") return res.status(403).json({ message: "Hanya Technician." });
 
+    // ================== DEBUG USER ==================
+    console.log("👤 TECH USER LOGIN:", {
+      id: user._id,
+      role: user.role,
+    });
+
+    if (user.role !== "technician") {
+      console.log("⛔ ACCESS DENIED - NOT TECHNICIAN");
+      return res.status(403).json({ message: "Hanya Technician." });
+    }
+
+    // ================== MAIN QUERY ==================
     const requests = await Request.find({
-      assignedTechnician: user._id,
+      assignedTechnician: { $in: [user._id] }, // 🔥 SAFE FOR SINGLE + MULTI
       maintenanceStatus: { $in: ["Submitted", "In Progress"] },
-    }).sort({ createdAt: -1 });
+    })
+      .populate("userId", "username department email")
+      .populate("assignedTechnician", "username name email") // 🔥 IMPORTANT
+      .sort({ createdAt: -1 });
 
-    const formatted = requests.map((r) => ({
-      _id: r._id,
-      serialNumber: r.serialNumber || "-",
-      staffName: r.staffName || "-",
-      staffDepartment: r.staffDepartment || "-",
-      requestType: r.requestType || "-",
-      finalStatus: r.finalStatus || "Pending",
-      maintenanceStatus: r.maintenanceStatus || "Submitted",
-      attachments: r.attachments || [],
-      startedAt: r.startedAt,
-      completedAt: r.completedAt,
-    }));
+    // ================== DEBUG RESULTS ==================
+    console.log("📦 TOTAL REQUESTS FOUND:", requests.length);
+
+    console.log(
+      "🧪 SAMPLE REQUEST (FIRST ITEM):",
+      requests[0]
+        ? {
+            id: requests[0]._id,
+            type: requests[0].requestType,
+            status: requests[0].maintenanceStatus,
+            tech: requests[0].assignedTechnician,
+          }
+        : "NO REQUEST FOUND"
+    );
+
+    // ================== FORMAT RESPONSE ==================
+    const formatted = requests.map((r, index) => {
+      console.log(`🔍 Mapping Request #${index + 1}`, r._id);
+
+      return {
+        _id: r._id,
+        serialNumber: r.serialNumber || "-",
+        staffName: r.staffName || "-",
+        staffDepartment: r.staffDepartment || "-",
+        requestType: r.requestType || "-",
+        finalStatus: r.finalStatus || "Pending",
+        maintenanceStatus: r.maintenanceStatus || "Submitted",
+        attachments: r.attachments || [],
+
+        // 🔥 DEBUG TECH VALUE
+        assignedTechnician: r.assignedTechnician,
+
+        startedAt: r.startedAt,
+        completedAt: r.completedAt,
+      };
+    });
+
+    // ================== FINAL DEBUG ==================
+    console.log("✅ FORMATTED RESPONSE READY:", formatted.length);
 
     res.status(200).json(formatted);
   } catch (err) {
-    console.error("❌ Error getTechnicianRequests:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("❌ Error getTechnicianRequests:", {
+      message: err.message,
+      stack: err.stack,
+    });
+
+    res.status(500).json({
+      message: "Server error",
+      error: err.message,
+    });
   }
 });
 
