@@ -386,24 +386,30 @@ const assignedAt = request.assignedAt
   ? new Date(request.assignedAt).toLocaleString()
   : "Not Assigned";
 
-// ================= EMAIL LOOP (FIXED) =================
+// ================= EMAIL LOOP =================
 if (Array.isArray(technicianIds) && technicianIds.length > 0) {
   await Promise.all(
     technicianIds.map(async (techId) => {
       const technician = await User.findById(techId);
 
-      if (technician?.email && technician.email.includes("@")) {
+      if (!technician) return;
+
+      if (technician.email && technician.email.includes("@")) {
         try {
           const dashboardUrl =
             process.env.DASHBOARD_URL ||
             "https://uwleapprovalsystem.onrender.com";
 
-    const html = `
+          // ✅ TEMPLATE KAU KEKAL (FIXED)
+          const html = `
 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
   <h2 style="color: #1a73e8;">New Maintenance Task Assigned</h2>
-  <p>Hello <strong>${technician.name}</strong>,</p>
+
+  <p>Hello <strong>${technician.name || "Technician"}</strong>,</p>
   <p>You have been assigned a new maintenance request. Please review the details below and start the task as soon as possible.</p>
+
   <hr/>
+
   <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
     <tr>
       <td style="padding:6px 8px; font-weight:bold; background:#f0f0f0;">Issue</td>
@@ -426,36 +432,39 @@ if (Array.isArray(technicianIds) && technicianIds.length > 0) {
       <td style="padding:6px 8px;">${assignedAt}</td>
     </tr>
   </table>
+
   <p>
-    <a href="${dashboardUrl}" style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Log Masuk Dashboard</a>
+    <a href="${dashboardUrl}" style="background:#1a73e8;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">
+      Log Masuk Dashboard
+    </a>
   </p>
+
   <p style="font-size:12px;color:gray;">
     This is an automated message from E-Approval System.
   </p>
 </div>
-    `;
+          `;
 
-    await sendEmail({
+          await sendEmail({
             to: technician.email,
             subject: "Task Baru Assigned 🔧",
-            html: `
-              <h3>Hi ${technician.name || "Technician"}</h3>
-              <p><b>Issue:</b> ${issue}</p>
-              <p><b>Location:</b> ${location}</p>
-              <p><b>Priority:</b> ${priority}</p>
-              <p><b>SLA:</b> ${sla} hours</p>
-              <p><b>Assigned At:</b> ${assignedAt}</p>
-              <br/>
-              <a href="${dashboardUrl}">Go to Dashboard</a>
-            `,
+            html,
           });
 
-    console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
-  } catch (emailErr) {
-    console.error("❌ FAILED: Email sending error", emailErr.message);
-  }
-} else {
-  console.warn(`⚠️ Technician ${technician.name} tidak ada email valid`);
+          console.log(`✅ SUCCESS: Email sent to ${technician.email}`);
+        } catch (emailErr) {
+          console.error(
+            `❌ FAILED: Email sending error for ${technician.email}`,
+            emailErr.message
+          );
+        }
+      } else {
+        console.warn(
+          `⚠️ Technician ${technician?.name || techId} tidak ada email valid`
+        );
+      }
+    })
+  );
 }
 
 // ================= PUSH NOTIFICATION TO TECHNICIAN =================
