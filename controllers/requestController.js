@@ -289,17 +289,25 @@ export const getMyRequests = async (req, res) => {
 export const getRequestsForTechnician = async (req, res) => {
   try {
     const technicianId = req.user._id;
+
     const requests = await Request.find({
-      assignedTechnician: technicianId,
+      assignedTechnician: { $in: [technicianId] }, // ✅ FIX HERE
       maintenanceStatus: { $in: ["Submitted", "In Progress"] },
     })
       .populate("userId", "username department email")
       .populate("approvals.approverId", "username department email")
+      .populate("assignedTechnician", "username name email") // 🔥 penting
       .sort({ createdAt: -1 });
+
+    console.log("🛠 TECH REQUESTS:", requests); // DEBUG
+
     res.status(200).json(requests);
   } catch (err) {
     console.error("❌ getTechnicianRequests error:", err.message);
-    res.status(500).json({ message: "Gagal ambil request untuk technician", error: err.message });
+    res.status(500).json({
+      message: "Gagal ambil request untuk technician",
+      error: err.message,
+    });
   }
 };
 
