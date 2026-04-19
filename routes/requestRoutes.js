@@ -228,9 +228,13 @@ router.patch("/:id/remark", authMiddleware, async (req, res) => {
 
     if (!request) return res.status(404).json({ message: "Request tak jumpa" });
 
-    if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Akses ditolak" });
-    }
+    const isAssigned = request.assignedTechnician?.some((t) =>
+  t.toString() === req.user._id.toString()
+);
+
+if (!isAssigned) {
+  return res.status(403).json({ message: "Akses ditolak" });
+}
 
     request.technicianRemark = remark;
     await request.save();
@@ -256,9 +260,15 @@ router.patch(
       const request = await Request.findById(id);
       if (!request) return res.status(404).json({ message: "Request tidak ditemui" });
 
-      if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
-      }
+      const isAssigned = request.assignedTechnician?.some((t) =>
+  t.toString() === req.user._id.toString()
+);
+
+if (!isAssigned) {
+  return res.status(403).json({
+    message: "Akses ditolak: bukan technician assigned",
+  });
+}
 
       if (file) {
         const fileName = Date.now() + "-" + file.originalname;
