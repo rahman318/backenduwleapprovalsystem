@@ -697,53 +697,70 @@ export const technicianUpdateStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    console.log(`🔹 Technician ${req.user._id} trying to update request ${id} to status: ${status}`);
+    console.log(`🔹 Technician ${req.user._id} updating ${id} → ${status}`);
 
-    // ✅ Validate status
     if (!["In Progress", "Completed"].includes(status)) {
       return res.status(400).json({ message: "Status tidak sah" });
     }
 
-    // ✅ Fetch request & populate userId for email
     const request = await Request.findById(id).populate("userId");
-    if (!request) return res.status(404).json({ message: "Request tidak dijumpai" });
-
-    console.log("🔹 Current maintenanceStatus:", request.maintenanceStatus);
-
-    // ✅ Check if current user is assigned technician
-    if (!request.assignedTechnician || request.assignedTechnician.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
+    if (!request) {
+      return res.status(404).json({ message: "Request tidak dijumpai" });
     }
 
-    // ================== VALIDATE TRANSITIONS ==================
+    console.log("🔍 Current status:", request.maintenanceStatus);
+
+    // 🔥 FIXED ASSIGN CHECK
+    const isAssigned = request.assignedTechnician?.some(
+      (t) => t.toString() === req.user._id.toString()
+    );
+
+    if (!isAssigned) {
+      return res.status(403).json({
+        message: "Akses ditolak: bukan technician assigned",
+      });
+    }
+
     const allowedTransitions = {
       Submitted: ["In Progress"],
       "In Progress": ["Completed"],
       Completed: [],
     };
 
-    if (!request.maintenanceStatus || !allowedTransitions[request.maintenanceStatus]) {
-      console.error("❌ Unknown maintenanceStatus:", request.maintenanceStatus);
-      return res.status(400).json({ message: `Status semasa tidak sah: ${request.maintenanceStatus}` });
+    const currentStatus = request.maintenanceStatus?.trim();
+
+    if (!allowedTransitions[currentStatus]) {
+      return res.status(400).json({
+        message: `Status tidak sah: ${currentStatus}`,
+      });
     }
 
-    if (!allowedTransitions[request.maintenanceStatus].includes(status)) {
-      return res.status(400).json({ message: `Tidak boleh tukar status dari ${request.maintenanceStatus} ke ${status}` });
+    if (!allowedTransitions[currentStatus].includes(status)) {
+      return res.status(400).json({
+        message: `Tidak boleh tukar ${currentStatus} → ${status}`,
+      });
     }
 
-    // ================== UPDATE STATUS ==================
+    // ================= UPDATE =================
+    request.maintenanceStatus = status;
+
     if (status === "In Progress") {
-      request.maintenanceStatus = "In Progress";
-      if (!request.assignedAt) request.assignedAt = new Date();
-      if (!request.startedAt) request.startedAt = new Date();
-    } else if (status === "Completed") {
-      request.maintenanceStatus = "Completed";
+      request.assignedAt ||= new Date();
+      request.startedAt ||= new Date();
+    }
+
+    if (status === "Completed") {
       request.completedAt = new Date();
       request.finalStatus = "Completed";
 
-      if (request.startedAt) {
-        const durationMs = request.completedAt - request.startedAt;
-        request.timeToComplete = Math.round(durationMs / 60000); // in minutes
+      if (request.startedAt && request.completedAt) {
+        const durationMs =
+          new Date(request.completedAt) - new Date(request.startedAt);
+
+        request.timeToComplete = Math.max(
+          1,
+          Math.round(durationMs / 60000)
+        );
       }
     }
 
