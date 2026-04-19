@@ -175,9 +175,15 @@ router.put("/:id/maintenance", authMiddleware, async (req, res) => {
     if (!request) return res.status(404).json({ message: "Request tak jumpa" });
 
     // ✅ Pastikan hanya technician assigned boleh update
-    if (!request.assignedTechnician || request.assignedTechnician.toString() !== user._id.toString()) {
-      return res.status(403).json({ message: "Akses ditolak: bukan technician assigned" });
-    }
+    const isAssigned = request.assignedTechnician?.some((t) =>
+  t.toString() === req.user._id.toString()
+);
+
+if (!isAssigned) {
+  return res.status(403).json({
+    message: "Akses ditolak: bukan technician assigned",
+  });
+}
 
     // ✅ Update status ikut backend logic
     if (request.maintenanceStatus === "Submitted") {
