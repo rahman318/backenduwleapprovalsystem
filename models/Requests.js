@@ -20,6 +20,7 @@ const approvalSchema = new mongoose.Schema({
 const itemSchema = new mongoose.Schema({
   itemName: { type: String, required: true },
   quantity: { type: Number, default: 0 },
+  quantityBalance: { type: Number, default: 0 },
   estimatedCost: { type: Number, default: 0 },
   supplier: { type: String, default: "" },
   reason: { type: String, default: "" },
