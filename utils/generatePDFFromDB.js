@@ -97,16 +97,32 @@ export async function generatePDFWithLogo(requestId){
 
   // --- PEMBELIAN ---
   if(request.requestType==="PEMBELIAN" && Array.isArray(request.items)){
-    const headers=["Item","Qty","Harga Seunit (RM)","Supplier","Tujuan"];
+    const headers=["Item","Qty","Qty Balance","Harga Seunit (RM)","Supplier","Tujuan"];
     const widths=[150,40,100,120,140];
     let x=margin; headers.forEach((h,i)=>{page.drawText(h,{x,y,size:10,font:bold}); x+=widths[i];}); y-=16;
-    request.items.forEach(item=>{ let col=margin;
-      page.drawText(item.itemName||"-",{x:col,y,size:10,font}); col+=widths[0];
-      page.drawText(`${item.quantity||0}`,{x:col,y,size:10,font}); col+=widths[1];
-      page.drawText(`${item.estimatedCost||0}`,{x:col,y,size:10,font}); col+=widths[2];
-      page.drawText(item.supplier||"-",{x:col,y,size:10,font}); col+=widths[3];
-      page.drawText(item.reason||"-",{x:col,y,size:10,font}); y-=15;
-    }); y-=10;
+    request.items.forEach(item => {
+  let col = margin;
+
+  page.drawText(item.itemName || "-", { x: col, y, size: 10, font });
+  col += widths[0];
+
+  page.drawText(`${item.quantity || 0}`, { x: col, y, size: 10, font });
+  col += widths[1];
+
+  // 🆕 QUANTITY BALANCE
+  page.drawText(`${item.quantityBalance || 0}`, { x: col, y, size: 10, font });
+  col += widths[2];
+
+  page.drawText(`${item.estimatedCost || 0}`, { x: col, y, size: 10, font });
+  col += widths[3];
+
+  page.drawText(item.supplier || "-", { x: col, y, size: 10, font });
+  col += widths[4];
+
+  page.drawText(item.reason || "-", { x: col, y, size: 10, font });
+
+  y -= 15;
+});
   }
   // --- OTHER REQUEST TYPES (CUTI / IT / MAINTENANCE) ---
   else{
