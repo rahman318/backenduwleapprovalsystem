@@ -92,6 +92,7 @@ export const createRequest = async (req, res) => {
         itemsData = parsedItems.map(item => ({
           itemName: item.itemName || item.description || "-",
           quantity: Number(item.quantity) || Number(item.qty) || 0,
+          quantityBalance: Number(item.quantityBalance) || 0, // 🔥 ADD THIS
           estimatedCost: Number(item.estimatedCost) || 0,
           supplier: item.supplier || "",
           reason: item.reason || item.remarks || "-",
