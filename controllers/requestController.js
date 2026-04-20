@@ -259,15 +259,46 @@ try {
 // ================== GET ALL REQUESTS ==================
 export const getRequests = async (req, res) => {
   try {
-    const requests = await Request.find()
-      .populate("userId", "username department email")
-      .populate("approvals.approverId", "username department email")
-      .populate("assignedTechnician", "username name email") // ✅ ADD THIS
-      .sort({ createdAt: -1 });
+    let requests;
+
+    // ================= ROLE: APPROVER =================
+    if (req.user.role === "approver") {
+      requests = await Request.find({
+        "approvals.approverId": req.user._id
+      })
+        .populate("userId", "username department email")
+        .populate("approvals.approverId", "username department email")
+        .populate("assignedTechnician", "username name email")
+        .sort({ createdAt: -1 });
+    }
+
+    // ================= ROLE: TECHNICIAN =================
+    else if (req.user.role === "technician") {
+      requests = await Request.find({
+        assignedTechnician: req.user._id
+      })
+        .populate("userId", "username department email")
+        .populate("approvals.approverId", "username department email")
+        .populate("assignedTechnician", "username name email")
+        .sort({ createdAt: -1 });
+    }
+
+    // ================= ROLE: ADMIN / REQUESTER =================
+    else {
+      requests = await Request.find()
+        .populate("userId", "username department email")
+        .populate("approvals.approverId", "username department email")
+        .populate("assignedTechnician", "username name email")
+        .sort({ createdAt: -1 });
+    }
+
     res.status(200).json(requests);
   } catch (err) {
     console.error("❌ getRequests error:", err.message);
-    res.status(500).json({ message: "Gagal ambil senarai request", error: err.message });
+    res.status(500).json({
+      message: "Gagal ambil senarai request",
+      error: err.message
+    });
   }
 };
 
