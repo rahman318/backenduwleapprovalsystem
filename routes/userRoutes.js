@@ -2,6 +2,7 @@ import express from "express";
 import {
   registerUser,
   getUsers,
+  updateUser,
   getStaff,
   getApprovers,
   getTechnicians,
