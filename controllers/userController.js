@@ -57,6 +57,31 @@ export const registerUser = async (req, res) => {
   }
 };
 
+//================== UPDATE USER =======================
+export const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User tidak dijumpai" });
+    }
+
+    res.status(200).json({
+      message: "User berjaya dikemaskini",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("❌ Error updateUser:", err);
+    res.status(500).json({ message: "Gagal update user", error: err.message });
+  }
+};
+
 // ================== GET CURRENT USER ==================
 export const getCurrentUser = async (req, res) => {
   try {
