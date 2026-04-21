@@ -14,6 +14,7 @@ const router = express.Router();
 
 // 🧩 Routes sedia ada
 router.post("/register", registerUser);
+router.put("/:id", updateUser);
 router.get("/", getUsers);
 router.get("/staff", getStaff);
 router.get("/approvers", getApprovers);
