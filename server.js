@@ -53,8 +53,8 @@ app.use("/api/my-requests", requestRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
 app.use("/api/subscription", subscriptionRoutes);
-app.use("/verify", verifyRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/verify", verifyRoutes);
 
 // ==========================
 // ⚙️ DATABASE
