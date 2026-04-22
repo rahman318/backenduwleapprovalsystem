@@ -173,16 +173,20 @@ export const resetPassword = async (req, res) => {
 
     const user = await User.findOne({
       resetPasswordToken: resetTokenHashed,
-      resetPasswordExpires: { $gt: Date.now() }, // ⬅️ fixed nama field
+      resetPasswordExpires: { $gt: Date.now() },
     });
 
-    if (!user)
-      return res
-        .status(400)
-        .json({ message: "Token tidak sah atau telah tamat tempoh" });
+    if (!user) {
+      return res.status(400).json({
+        message: "Token tidak sah atau telah tamat tempoh",
+      });
+    }
 
-    // Tukar kata laluan baru
-    user.password = password; // pre-save hook auto-hash
+    // ✅ HASH MANUAL (CONFIRM JADI)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    user.password = hashedPassword;
+
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
