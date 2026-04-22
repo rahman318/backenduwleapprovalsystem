@@ -11,6 +11,7 @@ import authRoutes from "./routes/authRoutes.js";
 import testEmailRoutes from "./routes/testEmail.js";
 import verifyRoutes from "./routes/verifyRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
+import auditLogRoutes from "./routes/auditLogRoutes.js";
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/verify", verifyRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
 
 // ==========================
 // ⚙️ DATABASE
