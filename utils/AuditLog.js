@@ -1,22 +1,22 @@
 import AuditLog from "../models/AuditLog.js";
 
 export const logAction = async ({
-  userId,
   action,
-  description,
-  module,
-  req,
+  user,
+  requestId,
+  details,
+  ipAddress,
 }) => {
   try {
     await AuditLog.create({
-      userId,
       action,
-      description,
-      module,
-      ipAddress: req.ip,
-      userAgent: req.headers["user-agent"],
+      user: user?.name || "Unknown",
+      role: user?.role || "Unknown",
+      requestId,
+      details,
+      ipAddress: ipAddress || "N/A",
     });
-  } catch (error) {
-    console.error("Audit log error:", error);
+  } catch (err) {
+    console.error("Audit log error:", err);
   }
 };
