@@ -125,6 +125,14 @@ export const createRequest = async (req, res) => {
 
     await newRequest.save();
 
+    // 🔥🔥🔥 AUDIT LOG MASUK SINI BOSSSKURRR
+await logAction({
+  action: "CREATE_REQUEST",
+  user: req.user,
+  requestId: newRequest._id,
+  details: `Request created by ${req.user?.name || "Unknown"}`,
+});
+
     const populatedRequest = await Request.findById(newRequest._id)
   .populate("userId", "username department email")
   .populate("approvals.approverId", "username department email")
