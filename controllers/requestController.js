@@ -131,6 +131,7 @@ await logAction({
   user: req.user,
   requestId: newRequest._id,
   details: `New ${requestType} request by ${staffName}`,
+  ipAddress: req.ip,
 });
     
     const populatedRequest = await Request.findById(newRequest._id)
