@@ -3,7 +3,7 @@ import AuditLog from "../models/AuditLog.js";
 export const getAuditLogs = async (req, res) => {
   try {
     const logs = await AuditLog.find()
-      .populate("userId", "name email") // ambil nama user
+      .populate("performedBy.userId", "name email role") // ambil nama user
       .sort({ createdAt: -1 }); // newest first
 
     res.status(200).json(logs);
