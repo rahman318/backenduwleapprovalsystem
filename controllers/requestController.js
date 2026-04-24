@@ -17,6 +17,20 @@ export const deleteRequestById = async (req, res) => {
   try {
     const request = await Request.findByIdAndDelete(req.params.id);
     if (!request) return res.status(404).json({ message: "Request not found" });
+    
+    // 🔥 AUDIT BEFORE DELETE
+await logAudit({
+  action: "DELETE",
+  module: "REQUEST",
+  user: req.user,
+  targetId: request._id,
+  details: {
+    staffName: request.staffName,
+    requestType: request.requestType,
+  },
+  req
+});
+    
     res.json({ message: "Request deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
