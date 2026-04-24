@@ -126,12 +126,17 @@ export const createRequest = async (req, res) => {
     await newRequest.save();
 
     // 🔥🔥🔥 AUDIT LOG MASUK SINI BOSSSKURRR
-await logAction({
-  action: "CREATE_REQUEST",
+await logAudit({
+  action: "CREATE",
+  module: "REQUEST",
   user: req.user,
-  requestId: newRequest._id,
-  details: `New ${requestType} request by ${staffName}`,
-  ipAddress: req.ip,
+  targetId: newRequest._id,
+  details: {
+    staffName,
+    department: staffDepartment,
+    requestType,
+  },
+  req
 });
     
     const populatedRequest = await Request.findById(newRequest._id)
