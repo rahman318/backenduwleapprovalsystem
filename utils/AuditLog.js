@@ -1,22 +1,30 @@
+// utils/auditHelper.js
 import AuditLog from "../models/AuditLog.js";
 
-export const logAction = async ({
+export const logAudit = async ({
   action,
+  module,
   user,
-  requestId,
+  targetId,
   details,
-  ipAddress,
+  req
 }) => {
   try {
     await AuditLog.create({
       action,
-      user: user?.name || "Unknown",
-      role: user?.role || "Unknown",
-      requestId,
+      module,
+      performedBy: {
+        userId: user?._id || null,
+        name: user?.name || "Unknown",
+        email: user?.email || "-",
+        role: user?.role || "-",
+      },
+      targetId,
       details,
-      ipAddress: ipAddress || "N/A",
+      ipAddress: req?.ip || req?.headers["x-forwarded-for"],
+      userAgent: req?.headers["user-agent"],
     });
   } catch (err) {
-    console.error("Audit log error:", err);
+    console.error("❌ Audit Log Error:", err.message);
   }
 };
