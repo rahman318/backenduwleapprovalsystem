@@ -5,7 +5,7 @@ import { sendEmail } from "../utils/emailService.js";
 import { uploadFileToSupabase } from "../utils/supabaseUpload.js";
 import { generatePDFWithLogo } from "../utils/generatePDFFromDB.js";
 import { sendPushNotification } from "../utils/sendPush.js";
-import { logAction } from "../utils/AuditLog.js";
+import logAction from "../utils/AuditLog.js";
 import PushSubscription from "../models/Subscription.js";
 import multer from "multer";
 
