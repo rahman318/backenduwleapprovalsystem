@@ -15,6 +15,8 @@ export const upload = multer({ storage: multer.memoryStorage() });
 // ================== DELETE REQUEST ==================
 export const deleteRequestById = async (req, res) => {
   try {
+    console.log("👤 DELETE USER:", req.user);
+    
     const request = await Request.findByIdAndDelete(req.params.id);
     if (!request) return res.status(404).json({ message: "Request not found" });
     
