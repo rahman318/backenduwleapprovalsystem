@@ -12,6 +12,7 @@ import testEmailRoutes from "./routes/testEmail.js";
 import verifyRoutes from "./routes/verifyRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import auditLogRoutes from "./routes/auditLogRoutes.js";
+import tickerRoutes from "./routes/tickerRoutes.js";
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", testEmailRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/ticker", tickerRoutes);
 app.use("/verify", verifyRoutes);
 
 // ==========================
