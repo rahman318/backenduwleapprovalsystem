@@ -13,6 +13,7 @@ import verifyRoutes from "./routes/verifyRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import auditLogRoutes from "./routes/auditLogRoutes.js";
 import tickerRoutes from "./routes/tickerRoutes.js";
+import inventoryRoutes from "./routes/inventoryRoutes";
 
 dotenv.config();
 
