@@ -57,6 +57,7 @@ app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/ticker", tickerRoutes);
 app.use("/verify", verifyRoutes);
+app.use("/api/inventory", inventoryRoutes);
 
 // ==========================
 // ⚙️ DATABASE
